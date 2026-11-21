@@ -544,8 +544,8 @@ const speedK = () => 1 + 0.2*Math.log(1 + score/6);
 // hold to jump higher: while the finger stays down (up to HOLD_MAX s) the head keeps rising
 const HOLD_MAX = 0.3, LIFT = () => 1500*S(), VMAX_UP = () => -270*S();
 let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
-// the gap starts wide (280) and narrows by 8 per obstacle down to 120
-const curGap = () => Math.max(120, 280 - 8*spawned)*S();
+// the gap starts wide (280) and narrows by 4 per obstacle down to 120
+const curGap = () => Math.max(120, 280 - 4*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
 let spawned = 0, lastCentre = null;
 let state = 'ready', y = 0, vy = 0, score = 0, best = 0, deadT = 0, trail = [], obs = [], nextOb = 0, flapT = 0, shake = 0;
