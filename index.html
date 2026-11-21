@@ -94,7 +94,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.10.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.10.1';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -859,9 +859,10 @@ function drawDrop(x, y){   // a teardrop with a shine, bobbing gently
   cx.fillStyle = 'rgba(255,255,255,.85)'; cx.beginPath(); cx.ellipse(-r*0.35, -r*0.1, r*0.22, r*0.4, -0.4, 0, 7); cx.fill();
   cx.restore();
 }
-// ---- 「我不是機器人」 check: the game pauses at a random score (first between 20–35, then every 35–50 more) ----
-// The server knows the latest possible checkpoints, so a run that skips them can't go on the leaderboard.
-const CHECK_FIRST = () => 20 + Math.floor(Math.random()*16), CHECK_NEXT = () => 35 + Math.floor(Math.random()*16), CHECK_LIMIT = 15;
+// ---- 「我不是機器人」 check: once in every 60 points from 60 up, at a random score inside that block (60–119, 120–179, …) ----
+// The server knows the latest possible checkpoints, and marks a run that skipped them as suspicious.
+const CHECK_EVERY = 60, CHECK_LIMIT = 15, checkAt = k => k*CHECK_EVERY + Math.floor(Math.random()*CHECK_EVERY);
+const CHECK_FIRST = () => checkAt(1);
 const checks = { need: 0, passed: 0, fake: 0, ms: [] };
 let nextCheck = 0, checkT0 = 0, checkTimer = null;
 function askHuman(){
@@ -879,7 +880,7 @@ document.getElementById('humanBox').addEventListener('pointerdown', e => {
   if (!e.isTrusted){ checks.fake++; return; }      // script clicks don't count
   clearInterval(checkTimer); checks.passed++; checks.ms.push(Math.round(performance.now() - checkT0));
   e.currentTarget.classList.add('ok'); document.getElementById('humanCb').textContent = '✔';
-  nextCheck = score + CHECK_NEXT();
+  nextCheck = checkAt(Math.floor(score/CHECK_EVERY) + 1);
   setTimeout(() => { document.getElementById('human').classList.remove('on'); state = 'play'; vy = FLAP(); flapT = t; }, 450);
 });
 let state = 'ready', y = 0, vy = 0, score = 0, best = 0, deadT = 0, trail = [], obs = [], nextOb = 0, flapT = 0, shake = 0;

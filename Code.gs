@@ -31,9 +31,9 @@ function minSeconds_(score) {
   for (let k = 1; k < score; k++) t += 330 / (160 * (1 + 0.2 * Math.log(1 + k / 6)) * 1.7);
   return t;
 }
-// The game asks 「我不是機器人」 first at a score between 20 and 35, then every 35–50 more,
+// The game asks 「我不是機器人」 once in every 60-point block from 60 up (60–119, 120–179, …) at a random score,
 // so a run of this score must have passed at least this many checks.
-function checksNeeded_(score) { return score < 35 ? 0 : 1 + Math.floor((score - 35) / 50); }
+function checksNeeded_(score) { return Math.max(0, Math.floor((score + 1) / 60) - 1); }
 const cache_ = () => CacheService.getScriptCache();
 function newTicket_(pid) {
   const ticket = Utilities.getUuid();
@@ -42,6 +42,8 @@ function newTicket_(pid) {
 }
 function flagsFor_(score, secs, run) {
   const out = [], r = run || {};
+  const need = checksNeeded_(score), got = Number(r.checks) || 0;
+  if (got < need) out.push('少了真人驗證 ' + (need - got) + ' 次（應有 ' + need + ' 次，只過 ' + got + ' 次）');
   if (Number(r.fake) > 0) out.push('程式點擊 ' + Number(r.fake) + ' 次');
   if (Number(r.taps) >= 20 && Number(r.cv) < 0.05) out.push('點擊間隔過度規律 cv=' + Number(r.cv));
   if (score >= 10 && Number(r.taps) < score * 0.5) out.push('點擊次數太少 ' + Number(r.taps));
@@ -92,7 +94,6 @@ function handle_(p) {
       if (tk.pid !== pid) return { error: 'ticket' };
       const secs = (Date.now() - tk.t) / 1000;
       if (secs < minSeconds_(score) * 0.9) return { error: 'rejected' };   // faster than the game allows
-      if (Number((p.run || {}).checks || 0) < checksNeeded_(score)) return { error: 'robot' };   // skipped the 「我不是機器人」 check
       const flag = flagsFor_(score, secs, p.run);
       const all = rows_(), mine = all.find(r => r.pid === pid);
       if (!mine && all.length >= MAX_ROWS) return { error: 'leaderboard full' };   // stop endless spam rows
