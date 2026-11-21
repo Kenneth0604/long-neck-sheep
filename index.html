@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.2.1';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.3.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -150,25 +150,108 @@ function drawBackdrop(){
     if (n>0.4){ cx.fillStyle='rgba(255,230,140,'+(n*0.7)+')'; for (let yy=gy-h+8; yy<gy-6; yy+=12) for (let xx=x+5; xx<x+36; xx+=10) if (rnd(i*31+yy+xx)>0.55) cx.fillRect(xx,yy,4,5); }
     if (i % 23 === 0) farTower(x+20, gy, far);
   }
-  // street
-  cx.fillStyle = lerpC('#6b6f78','#2c2f38', n); cx.fillRect(0, gy, W, H-gy);
-  cx.fillStyle = lerpC('#8d9099','#3a3d47', n); cx.fillRect(0, gy, W, 8);
-  cx.fillStyle = 'rgba(255,255,255,.7)'; for (let x = -((camX)%60); x<W; x+=60) cx.fillRect(x, gy + (H-gy)*0.55, 30, 4);
-  // street lamps + scooters
+  // 臺灣街屋 row (parallax 0.6) in front of the skyline
+  streetRow(gy, n, 0.6);
+  // street: red-brick sidewalk, scooter lane, zebra crossings, 機車待轉格
+  const rh = H - gy;
+  cx.fillStyle = lerpC('#6b6f78','#2c2f38', n); cx.fillRect(0, gy, W, rh);
+  cx.fillStyle = lerpC('#b5674d','#4a2e2a', n); cx.fillRect(0, gy, W, 7*S());
+  cx.fillStyle = lerpC('#d8d2c4','#55514a', n); cx.fillRect(0, gy + 7*S(), W, 2*S());
+  cx.fillStyle = 'rgba(255,255,255,.7)'; for (let x = -((camX)%60); x<W; x+=60) cx.fillRect(x, gy + rh*0.55, 30, 4);
+  cx.fillStyle = 'rgba(255,255,255,.55)'; for (let x = -((camX)%40); x<W; x+=40) cx.fillRect(x, gy + rh*0.3, 20, 2);   // scooter lane line
+  for (let i = Math.floor(camX/900) - 1; i < (camX + W)/900 + 1; i++){
+    const zx = i*900 - camX + 500;
+    cx.fillStyle = 'rgba(255,255,255,.75)'; for (let k = 0; k < 6; k++) cx.fillRect(zx + k*14*S(), gy + 10*S(), 8*S(), rh - 14*S());
+    cx.strokeStyle = 'rgba(255,255,255,.8)'; cx.lineWidth = 2; cx.strokeRect(zx + 100*S(), gy + rh*0.32, 44*S(), rh*0.2);   // 機車待轉格
+    // traffic light on the sidewalk
+    const lx = zx - 24*S(); cx.fillStyle = '#3a3d47'; cx.fillRect(lx, gy - 64*S(), 3*S(), 64*S()); cx.fillRect(lx - 4*S(), gy - 70*S(), 11*S(), 24*S());
+    const ph = (t*0.25 + i*0.37) % 1; cx.fillStyle = ph < 0.5 ? '#43d65a' : '#3a3d47'; cx.beginPath(); cx.arc(lx + 1.5*S(), gy - 52*S(), 3*S(), 0, 7); cx.fill();
+    cx.fillStyle = ph >= 0.5 ? '#ff4d4d' : '#3a3d47'; cx.beginPath(); cx.arc(lx + 1.5*S(), gy - 64*S(), 3*S(), 0, 7); cx.fill();
+  }
+  // street lamps
   for (let i=Math.floor(camX/180)-1; i<(camX+W)/180+1; i++){
     const x = i*180 - camX + 40; cx.fillStyle='#3a3d47'; cx.fillRect(x, gy-70*S(), 4, 70*S()); cx.fillRect(x, gy-70*S(), 18, 4);
     if (n>0.3){ cx.fillStyle='rgba(255,230,150,'+n+')'; cx.beginPath(); cx.arc(x+18, gy-66*S(), 6, 0, 7); cx.fill(); }
-    if (rnd(i*9) > 0.55) scooter(i*180 - camX + 110 - ((t*60*(1+rnd(i)))%180), gy + (H-gy)*0.35, n, i);
   }
+  // scooter traffic: far lane heading left, near (scooter) lane heading right
+  traffic(gy + rh*0.52, n, 70, -1, 120*S(), 0.62, 11);
+  traffic(gy + rh*0.8, n, 45, 1, 105*S(), 0.78, 29);
 }
 function farTower(x, gy, col){ cx.fillStyle = col; const s = S()*0.8;
   for (let k=0;k<8;k++){ const yb = gy - 60*s - k*22*s; cx.beginPath(); cx.moveTo(x-12*s, yb); cx.lineTo(x+12*s, yb); cx.lineTo(x+16*s, yb-22*s); cx.lineTo(x-16*s, yb-22*s); cx.fill(); }
   cx.fillRect(x-16*s, gy-60*s, 32*s, 60*s); cx.fillRect(x-1.5, gy-60*s-8*22*s-40*s, 3, 40*s); }
-function scooter(x, y, n, i){ const c = ['#ff6f61','#4fa3ff','#ffd23f','#7ad97a'][i%4];
-  cx.fillStyle='#222'; cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.arc(x+26, y, 6, 0, 7); cx.fill();
-  cx.fillStyle=c; cx.beginPath(); cx.roundRect(x-4, y-14, 34, 10, 4); cx.fill();
-  cx.fillStyle='#333'; cx.fillRect(x+8, y-30, 8, 16); cx.fillStyle=c; cx.beginPath(); cx.arc(x+12, y-34, 6, 0, 7); cx.fill();
-  if (n>0.3){ cx.fillStyle='rgba(255,250,200,.9)'; cx.beginPath(); cx.arc(x+32, y-10, 3, 0, 7); cx.fill(); } }
+// a scooter with a helmeted rider; dir 1 = heading right, -1 = left; parked = no rider
+function scooter(x, y, n, i, sc = 1, dir = 1, parked = false){
+  const k = S()*sc, c = ['#ff6f61','#4fa3ff','#ffd23f','#7ad97a','#f4f4f4','#9b7bd6'][i%6], dk = v => lerpC(v, '#1d2238', n*0.6);
+  cx.save(); cx.translate(x, y); cx.scale(dir*k, k);
+  cx.fillStyle = '#1e1e22'; cx.beginPath(); cx.arc(-12, 0, 6, 0, 7); cx.arc(13, 0, 6, 0, 7); cx.fill();
+  cx.fillStyle = '#9aa0a6'; cx.beginPath(); cx.arc(-12, 0, 2.2, 0, 7); cx.arc(13, 0, 2.2, 0, 7); cx.fill();
+  cx.fillStyle = dk(c); cx.beginPath(); cx.moveTo(-19, -4); cx.quadraticCurveTo(-18, -16, -4, -15); cx.lineTo(4, -6); cx.lineTo(10, -6);
+  cx.lineTo(14, -22); cx.lineTo(18, -22); cx.lineTo(19, -4); cx.closePath(); cx.fill();           // body + front shield
+  cx.fillStyle = '#2b2b30'; cx.beginPath(); cx.roundRect(-17, -19, 15, 4, 2); cx.fill();         // seat
+  cx.fillStyle = '#555'; cx.fillRect(14, -27, 2, 6); cx.fillRect(11, -28, 8, 2);                // handlebar
+  if (!parked){
+    cx.fillStyle = dk(['#3b4a6b','#6b3b3b','#3b6b4a','#555'][i%4]); cx.beginPath(); cx.roundRect(-12, -36, 10, 18, 3); cx.fill();   // rider
+    cx.strokeStyle = cx.fillStyle; cx.lineWidth = 3; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(-4, -31); cx.lineTo(12, -27); cx.stroke();
+    cx.fillStyle = dk(['#ffffff','#ffd23f','#ff6f61','#4fa3ff','#222'][(i*3)%5]); cx.beginPath(); cx.arc(-6, -41, 6, 0, 7); cx.fill();   // helmet
+    cx.fillStyle = 'rgba(40,50,70,.8)'; cx.fillRect(-2, -43, 4, 3);
+  }
+  if (n > 0.3){ cx.fillStyle = 'rgba(255,250,200,'+n+')'; cx.beginPath(); cx.arc(18, -16, 2.5, 0, 7); cx.fill();
+    cx.fillStyle = 'rgba(255,250,200,'+(n*0.18)+')'; cx.beginPath(); cx.moveTo(18, -16); cx.lineTo(60, -4); cx.lineTo(60, -26); cx.fill();
+    cx.fillStyle = 'rgba(255,60,60,'+n+')'; cx.fillRect(-20, -10, 2, 3); }
+  cx.restore();
+}
+// 臺灣街屋: a row of 3–5 storey shophouses with 騎樓, 鐵窗, AC units, vertical signs and rooftop water tanks
+function streetRow(gy, n, par){
+  const s = S(), off = camX*par, dk = (c, f=0.7) => lerpC(c, '#1d2238', n*f);
+  const tiles = ['#e3d6c3','#d6c8b6','#c9cfd3','#e8cfc0','#d8d2c4','#c4b8a8','#e6e0d2'];
+  const signs = ['#e53935','#1e88e5','#fbc02d','#43a047','#fb8c00','#8e24aa','#00897b'];
+  let i = Math.floor(off/(90*s)) - 2;
+  for (; ; i++){
+    const bw = (78 + rnd(i*7.1)*44)*s, x = i*90*s - off;
+    if (x > W + 20) break; if (x + bw < -40) continue;
+    const fl = 3 + Math.floor(rnd(i*3.3)*3), fh = 24*s, bh = 30*s + fl*fh, top = gy - bh;
+    cx.fillStyle = dk(tiles[Math.floor(rnd(i*1.9)*tiles.length)]); cx.fillRect(x, top, bw, bh);
+    // 騎樓 arcade with pillars, shop interiors and a sign band
+    cx.fillStyle = dk('#4a4038', 0.5); cx.fillRect(x, gy - 26*s, bw, 26*s);
+    cx.fillStyle = n > 0.35 ? 'rgba(255,214,140,'+(0.35+n*0.5)+')' : dk('#7a6a58'); cx.fillRect(x + 6*s, gy - 22*s, bw - 12*s, 18*s);
+    cx.fillStyle = dk(tiles[Math.floor(rnd(i*1.9)*tiles.length)]); cx.fillRect(x, gy - 26*s, 5*s, 26*s); cx.fillRect(x + bw - 5*s, gy - 26*s, 5*s, 26*s);
+    const sc = signs[Math.floor(rnd(i*5.7)*signs.length)];
+    cx.fillStyle = dk(sc, 0.3); cx.fillRect(x, gy - 32*s, bw, 7*s);
+    // upper floors: 鐵窗 window boxes, AC units
+    for (let f = 0; f < fl; f++){
+      const fy = gy - 32*s - (f+1)*fh;
+      for (let w = 0; w < 2; w++){
+        const wx = x + bw*(0.12 + w*0.46), ww = bw*0.32;
+        cx.fillStyle = n > 0.4 && rnd(i*13 + f*5 + w) > 0.4 ? 'rgba(255,224,130,'+n+')' : dk('#6d7f8f'); cx.fillRect(wx, fy + 5*s, ww, 13*s);
+        cx.strokeStyle = dk('#8a8f96'); cx.lineWidth = 1; cx.strokeRect(wx - 2*s, fy + 3*s, ww + 4*s, 17*s);
+        for (let b = 1; b < 4; b++){ cx.beginPath(); cx.moveTo(wx - 2*s + b*(ww + 4*s)/4, fy + 3*s); cx.lineTo(wx - 2*s + b*(ww + 4*s)/4, fy + 20*s); cx.stroke(); }
+        if (rnd(i*17 + f*3 + w) > 0.6){ cx.fillStyle = dk('#eef0f0'); cx.fillRect(wx + ww*0.55, fy + 20*s, 10*s, 6*s); }   // AC unit
+      }
+    }
+    // vertical signboard sticking out
+    if (rnd(i*2.7) > 0.35){ const vs = signs[Math.floor(rnd(i*4.1)*signs.length)], vh = Math.min(fl*fh*0.8, 60*s);
+      cx.fillStyle = dk(vs, 0.25); cx.fillRect(x + bw - 9*s, gy - 36*s - vh, 11*s, vh);
+      cx.fillStyle = n > 0.3 ? 'rgba(255,255,255,'+(0.5+n*0.4)+')' : 'rgba(255,255,255,.75)';
+      for (let k = 0; k < 4; k++) cx.fillRect(x + bw - 6.5*s, gy - 33*s - vh + 4*s + k*vh/4.2, 6*s, vh/6); }
+    // rooftop: water tank or a 頂樓加蓋 sheet roof
+    if (rnd(i*6.1) > 0.5){ cx.fillStyle = dk('#d0d4d8'); cx.fillRect(x + bw*0.2, top - 12*s, 12*s, 12*s); cx.fillStyle = dk('#b9bec4'); cx.fillRect(x + bw*0.2 - 1, top - 13*s, 12*s + 2, 3*s); }
+    else { cx.fillStyle = dk(rnd(i) > 0.5 ? '#4f7fb0' : '#5f9a6a'); cx.fillRect(x + bw*0.15, top - 10*s, bw*0.6, 10*s);
+      cx.fillStyle = dk('#9aa0a6'); cx.fillRect(x + bw*0.13, top - 12*s, bw*0.64, 3*s); }
+    // parked scooters under the arcade
+    for (let k = 0; k < 3; k++) if (rnd(i*11 + k) > 0.35) scooter(x + 14*s + k*bw*0.3, gy - 2*s, n, i + k, 0.42, rnd(i+k) > 0.5 ? 1 : -1, true);
+  }
+}
+// moving scooter traffic, world-anchored so nothing pops: each lane drifts at its own speed
+function traffic(y, n, speed, dir, spacing, sc, seed){
+  const off = camX - t*speed*dir;
+  for (let i = Math.floor(off/spacing) - 1; i < (off + W)/spacing + 2; i++){
+    if (rnd(i*3.7 + seed) < 0.35) continue;
+    const x = i*spacing - off + rnd(i + seed)*spacing*0.4;
+    scooter(x, y + rnd(i*1.3 + seed)*6*S(), n, i + seed, sc*(0.9 + rnd(i*2.1 + seed)*0.2), dir);
+    if (rnd(i*5.3 + seed) > 0.55) scooter(x + 30*S()*sc, y + 8*S(), n, i + seed + 2, sc*0.95, dir);   // scooters ride in packs
+  }
+}
 
 // ---------- Taipei landmarks ----------
 // draw(x, top, w, gy, n, flip): fill [x, x+w] from `top` down to the base line `gy`.
