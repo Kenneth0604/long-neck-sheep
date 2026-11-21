@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.4.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.5.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -152,37 +152,54 @@ function drawBackdrop(){
   }
   // 臺灣街屋 row (parallax 0.6) in front of the skyline
   streetRow(gy, n, 0.6);
-  // street: red-brick sidewalk, scooter lane, zebra crossings, 機車待轉格
-  const rh = H - gy;
-  cx.fillStyle = lerpC('#6b6f78','#2c2f38', n); cx.fillRect(0, gy, W, rh);
-  cx.fillStyle = lerpC('#b5674d','#4a2e2a', n); cx.fillRect(0, gy, W, 7*S());
-  cx.fillStyle = lerpC('#d8d2c4','#55514a', n); cx.fillRect(0, gy + 7*S(), W, 2*S());
-  cx.fillStyle = 'rgba(255,255,255,.7)'; for (let x = -((camX)%60); x<W; x+=60) cx.fillRect(x, gy + rh*0.55, 30, 4);
-  cx.fillStyle = 'rgba(255,255,255,.55)'; for (let x = -((camX)%40); x<W; x+=40) cx.fillRect(x, gy + rh*0.3, 20, 2);   // scooter lane line
+  // street: red-brick sidewalk, curb markings (紅線/黃線/白線停車格), parking lane, two traffic lanes
+  const rh = H - gy, sS = S();
+  cx.fillStyle = lerpC('#6f7279','#2c2f38', n); cx.fillRect(0, gy, W, rh);
+  cx.fillStyle = lerpC(mute('#b5674d', 0.4),'#4a2e2a', n); cx.fillRect(0, gy, W, 7*sS);
+  const SEG = 260*sS, curbY = gy + 7*sS, parkY = gy + rh*0.3, laneTop = gy + rh*0.36;
+  for (let i = Math.floor(camX/SEG) - 1; i < (camX + W)/SEG + 1; i++){
+    const x0 = i*SEG - camX, kind = rnd(i*4.7 + 3) < 0.25 ? 'red' : rnd(i*4.7 + 3) < 0.45 ? 'yellow' : 'park';
+    cx.fillStyle = kind === 'red' ? lerpC(mute('#d64541', 0.25), '#3a1f22', n*0.6) : kind === 'yellow' ? lerpC(mute('#e8c13a', 0.25), '#3a3320', n*0.6) : lerpC('#e8e6e0', '#55514a', n);
+    cx.fillRect(x0, curbY, SEG, 3.5*sS);
+    if (kind === 'park'){   // white parking bays with parked cars and scooters
+      const bay = 52*sS; cx.strokeStyle = 'rgba(255,255,255,'+(0.75 - n*0.3)+')'; cx.lineWidth = 1.5;
+      for (let b = 0; b < 4; b++){ const bx = x0 + 18*sS + b*(bay + 8*sS); cx.strokeRect(bx, curbY + 4*sS, bay, laneTop - curbY - 6*sS);
+        const r = rnd(i*13.3 + b); if (r < 0.55) car(bx + bay/2, parkY + 2*sS, n, i*5 + b, 0.62, r < 0.3 ? 1 : -1);
+        else if (r < 0.8){ for (let k = 0; k < 3; k++) scooter(bx + 10*sS + k*14*sS, parkY + 2*sS, n, i + b + k, 0.42, 1, true); } }
+    }
+    if (rnd(i*2.3) > 0.4) roadSign(x0 + SEG*0.85, gy, n, i);
+  }
+  cx.fillStyle = 'rgba(255,255,255,.7)'; cx.fillRect(0, laneTop, W, 1.5*sS);   // parking-lane edge (white solid)
+  cx.fillStyle = lerpC('#e8c13a', '#6b5a20', n); cx.fillRect(0, gy + rh*0.66, W, 1.5*sS); cx.fillRect(0, gy + rh*0.66 + 3*sS, W, 1.5*sS);   // double yellow centre line
+  cx.fillStyle = 'rgba(255,255,255,.55)'; for (let x = -((camX)%40); x<W; x+=40) cx.fillRect(x, gy + rh*0.84, 20, 1.5*sS);   // scooter lane line
   for (let i = Math.floor(camX/900) - 1; i < (camX + W)/900 + 1; i++){
     const zx = i*900 - camX + 500;
-    cx.fillStyle = 'rgba(255,255,255,.75)'; for (let k = 0; k < 6; k++) cx.fillRect(zx + k*14*S(), gy + 10*S(), 8*S(), rh - 14*S());
-    cx.strokeStyle = 'rgba(255,255,255,.8)'; cx.lineWidth = 2; cx.strokeRect(zx + 100*S(), gy + rh*0.32, 44*S(), rh*0.2);   // 機車待轉格
-    // traffic light on the sidewalk
-    const lx = zx - 24*S(); cx.fillStyle = '#3a3d47'; cx.fillRect(lx, gy - 64*S(), 3*S(), 64*S()); cx.fillRect(lx - 4*S(), gy - 70*S(), 11*S(), 24*S());
-    const ph = (t*0.25 + i*0.37) % 1; cx.fillStyle = ph < 0.5 ? '#43d65a' : '#3a3d47'; cx.beginPath(); cx.arc(lx + 1.5*S(), gy - 52*S(), 3*S(), 0, 7); cx.fill();
-    cx.fillStyle = ph >= 0.5 ? '#ff4d4d' : '#3a3d47'; cx.beginPath(); cx.arc(lx + 1.5*S(), gy - 64*S(), 3*S(), 0, 7); cx.fill();
+    cx.fillStyle = 'rgba(255,255,255,.7)'; for (let k = 0; k < 6; k++) cx.fillRect(zx + k*14*sS, laneTop + 2*sS, 8*sS, rh - (laneTop - gy) - 4*sS);
+    cx.strokeStyle = 'rgba(255,255,255,.75)'; cx.lineWidth = 1.5; cx.strokeRect(zx + 100*sS, gy + rh*0.7, 44*sS, rh*0.12);   // 機車待轉格
+    const lx = zx - 24*sS; cx.fillStyle = '#4a4d55'; cx.fillRect(lx, gy - 64*sS, 3*sS, 64*sS); cx.fillRect(lx - 4*sS, gy - 70*sS, 11*sS, 24*sS);
+    const ph = (t*0.25 + i*0.37) % 1; cx.fillStyle = ph < 0.5 ? '#5bc46c' : '#4a4d55'; cx.beginPath(); cx.arc(lx + 1.5*sS, gy - 52*sS, 3*sS, 0, 7); cx.fill();
+    cx.fillStyle = ph >= 0.5 ? '#e86a5a' : '#4a4d55'; cx.beginPath(); cx.arc(lx + 1.5*sS, gy - 64*sS, 3*sS, 0, 7); cx.fill();
   }
   // street lamps
   for (let i=Math.floor(camX/180)-1; i<(camX+W)/180+1; i++){
-    const x = i*180 - camX + 40; cx.fillStyle='#3a3d47'; cx.fillRect(x, gy-70*S(), 4, 70*S()); cx.fillRect(x, gy-70*S(), 18, 4);
-    if (n>0.3){ cx.fillStyle='rgba(255,230,150,'+n+')'; cx.beginPath(); cx.arc(x+18, gy-66*S(), 6, 0, 7); cx.fill(); }
+    const x = i*180 - camX + 40; cx.fillStyle='#4a4d55'; cx.fillRect(x, gy-70*sS, 4, 70*sS); cx.fillRect(x, gy-70*sS, 18, 4);
+    if (n>0.3){ cx.fillStyle='rgba(255,230,150,'+n+')'; cx.beginPath(); cx.arc(x+18, gy-66*sS, 6, 0, 7); cx.fill(); }
   }
-  // scooter traffic: far lane heading left, near (scooter) lane heading right
-  traffic(gy + rh*0.52, n, 70, -1, 120*S(), 0.62, 11);
-  traffic(gy + rh*0.8, n, 45, 1, 105*S(), 0.78, 29);
+  // traffic: far lane heading left, near lane heading right; cars and scooters mixed
+  cx.save(); cx.globalAlpha = 0.88;
+  traffic(gy + rh*0.6, n, 70, -1, 110*sS, 0.6, 11, 0.45);
+  traffic(gy + rh*0.9, n, 45, 1, 100*sS, 0.66, 29, 0.3);
+  cx.restore();
 }
 function farTower(x, gy, col){ cx.fillStyle = col; const s = S()*0.8;
   for (let k=0;k<8;k++){ const yb = gy - 60*s - k*22*s; cx.beginPath(); cx.moveTo(x-12*s, yb); cx.lineTo(x+12*s, yb); cx.lineTo(x+16*s, yb-22*s); cx.lineTo(x-16*s, yb-22*s); cx.fill(); }
   cx.fillRect(x-16*s, gy-60*s, 32*s, 60*s); cx.fillRect(x-1.5, gy-60*s-8*22*s-40*s, 3, 40*s); }
+// background colours are muted so the landmarks stay the focus
+const mute = (c, k = 0.45) => lerpC(c, '#b9b3ab', k);
+const pick = (arr, i) => arr[((Math.floor(i) % arr.length) + arr.length) % arr.length];
 // a scooter with a helmeted rider; dir 1 = heading right, -1 = left; parked = no rider
 function scooter(x, y, n, i, sc = 1, dir = 1, parked = false){
-  const k = S()*sc, c = ['#ff6f61','#4fa3ff','#ffd23f','#7ad97a','#f4f4f4','#9b7bd6'][i%6], dk = v => lerpC(v, '#1d2238', n*0.6);
+  const k = S()*sc, c = mute(pick(['#ff6f61','#4fa3ff','#ffd23f','#7ad97a','#f4f4f4','#9b7bd6'], i)), dk = v => lerpC(mute(v, 0.3), '#1d2238', n*0.6);
   cx.save(); cx.translate(x, y); cx.scale(dir*k, k);
   cx.fillStyle = '#1e1e22'; cx.beginPath(); cx.arc(-12, 0, 6, 0, 7); cx.arc(13, 0, 6, 0, 7); cx.fill();
   cx.fillStyle = '#9aa0a6'; cx.beginPath(); cx.arc(-12, 0, 2.2, 0, 7); cx.arc(13, 0, 2.2, 0, 7); cx.fill();
@@ -191,9 +208,9 @@ function scooter(x, y, n, i, sc = 1, dir = 1, parked = false){
   cx.fillStyle = '#2b2b30'; cx.beginPath(); cx.roundRect(-17, -19, 15, 4, 2); cx.fill();         // seat
   cx.fillStyle = '#555'; cx.fillRect(14, -27, 2, 6); cx.fillRect(11, -28, 8, 2);                // handlebar
   if (!parked){
-    cx.fillStyle = dk(['#3b4a6b','#6b3b3b','#3b6b4a','#555'][i%4]); cx.beginPath(); cx.roundRect(-12, -36, 10, 18, 3); cx.fill();   // rider
+    cx.fillStyle = dk(pick(['#3b4a6b','#6b3b3b','#3b6b4a','#555555'], i)); cx.beginPath(); cx.roundRect(-12, -36, 10, 18, 3); cx.fill();   // rider
     cx.strokeStyle = cx.fillStyle; cx.lineWidth = 3; cx.lineCap = 'round'; cx.beginPath(); cx.moveTo(-4, -31); cx.lineTo(12, -27); cx.stroke();
-    cx.fillStyle = dk(['#ffffff','#ffd23f','#ff6f61','#4fa3ff','#222'][(i*3)%5]); cx.beginPath(); cx.arc(-6, -41, 6, 0, 7); cx.fill();   // helmet
+    cx.fillStyle = dk(pick(['#ffffff','#ffd23f','#ff6f61','#4fa3ff','#222222'], i*3)); cx.beginPath(); cx.arc(-6, -41, 6, 0, 7); cx.fill();   // helmet
     cx.fillStyle = 'rgba(40,50,70,.8)'; cx.fillRect(-2, -43, 4, 3);
   }
   if (n > 0.3){ cx.fillStyle = 'rgba(255,250,200,'+n+')'; cx.beginPath(); cx.arc(18, -16, 2.5, 0, 7); cx.fill();
@@ -201,9 +218,50 @@ function scooter(x, y, n, i, sc = 1, dir = 1, parked = false){
     cx.fillStyle = 'rgba(255,60,60,'+n+')'; cx.fillRect(-20, -10, 2, 3); }
   cx.restore();
 }
+// a car: sedan, hatchback or a yellow taxi; dir 1 = heading right
+function car(x, y, n, i, sc = 1, dir = 1){
+  const k = S()*sc, kind = pick([0,1,2,3,4,5,6], i) === 0 ? 'taxi' : pick([0,1,2], i) === 0 ? 'hatch' : 'sedan';
+  const c = kind === 'taxi' ? '#f2c230' : pick(['#e9e9e6','#9aa3ab','#2f3640','#a33b3b','#3b5b8f','#c9c4b8'], i);
+  const dk = v => lerpC(mute(v, 0.35), '#1d2238', n*0.6);
+  cx.save(); cx.translate(x, y); cx.scale(dir*k, k);
+  cx.fillStyle = dk(c); cx.beginPath(); cx.roundRect(-30, -16, 60, 12, 4); cx.fill();
+  cx.beginPath(); if (kind === 'hatch'){ cx.moveTo(-26, -15); cx.lineTo(-24, -28); cx.lineTo(8, -28); cx.lineTo(18, -15); }
+  else { cx.moveTo(-22, -15); cx.lineTo(-14, -27); cx.lineTo(8, -27); cx.lineTo(18, -15); } cx.fill();
+  cx.fillStyle = dk('#9fc3d8'); cx.beginPath();
+  if (kind === 'hatch'){ cx.moveTo(-22, -16); cx.lineTo(-21, -25); cx.lineTo(-6, -25); cx.lineTo(-6, -16); cx.moveTo(-3, -16); cx.lineTo(-3, -25); cx.lineTo(7, -25); cx.lineTo(14, -16); }
+  else { cx.moveTo(-18, -16); cx.lineTo(-12, -25); cx.lineTo(-4, -25); cx.lineTo(-4, -16); cx.moveTo(-1, -16); cx.lineTo(-1, -25); cx.lineTo(7, -25); cx.lineTo(14, -16); }
+  cx.fill();
+  if (kind === 'taxi'){ cx.fillStyle = dk('#ffffff'); cx.fillRect(-6, -31, 10, 4); }
+  cx.fillStyle = '#1e1e22'; cx.beginPath(); cx.arc(-18, -3, 6, 0, 7); cx.arc(18, -3, 6, 0, 7); cx.fill();
+  cx.fillStyle = '#9aa0a6'; cx.beginPath(); cx.arc(-18, -3, 2.4, 0, 7); cx.arc(18, -3, 2.4, 0, 7); cx.fill();
+  cx.fillStyle = n > 0.3 ? 'rgba(255,250,200,'+n+')' : dk('#f4efe0'); cx.fillRect(26, -14, 4, 3);
+  cx.fillStyle = n > 0.3 ? 'rgba(255,60,60,'+n+')' : dk('#c0392b'); cx.fillRect(-30, -14, 3, 3);
+  if (n > 0.3){ cx.fillStyle = 'rgba(255,250,200,'+(n*0.16)+')'; cx.beginPath(); cx.moveTo(30, -13); cx.lineTo(80, -2); cx.lineTo(80, -24); cx.fill(); }
+  cx.restore();
+}
+// road signs on the sidewalk: green street-name plates, no-parking, speed limit, bus stop
+const ROADS = ['中山北路','忠孝東路','仁愛路','信義路','南京東路','羅斯福路','和平東路','民生東路','復興南路','敦化北路','承德路','重慶南路'];
+function roadSign(x, gy, n, i){
+  const s = S(), dk = v => lerpC(mute(v, 0.3), '#1d2238', n*0.6), type = pick([0,1,2,3], i);
+  cx.fillStyle = dk('#8a8f96'); cx.fillRect(x, gy - 58*s, 2.5*s, 58*s);
+  if (type === 0){ const name = pick(ROADS, i*7) + (pick([0,1,2], i) ? '' : pick(['一段','二段','三段'], i*5));
+    cx.font = '800 '+Math.round(8*s)+'px "PingFang TC","Noto Sans TC",sans-serif'; const tw = cx.measureText(name).width + 8*s;
+    cx.fillStyle = dk('#2e7d4f'); cx.beginPath(); cx.roundRect(x - tw/2 + 1, gy - 64*s, tw, 12*s, 2); cx.fill();
+    cx.fillStyle = dk('#ffffff'); cx.textAlign = 'center'; cx.fillText(name, x + 1, gy - 55*s); }
+  else if (type === 1){ const cy = gy - 56*s, rr = 7*s;   // 禁止停車
+    cx.fillStyle = dk('#d84a3a'); cx.beginPath(); cx.arc(x + 1, cy, rr, 0, 7); cx.fill(); cx.fillStyle = dk('#3d6fb0'); cx.beginPath(); cx.arc(x + 1, cy, rr*0.72, 0, 7); cx.fill();
+    cx.strokeStyle = dk('#d84a3a'); cx.lineWidth = 2*s; cx.beginPath(); cx.moveTo(x + 1 - rr*0.5, cy - rr*0.5); cx.lineTo(x + 1 + rr*0.5, cy + rr*0.5); cx.stroke(); }
+  else if (type === 2){ const cy = gy - 56*s, rr = 7*s;   // 速限 50
+    cx.fillStyle = dk('#d84a3a'); cx.beginPath(); cx.arc(x + 1, cy, rr, 0, 7); cx.fill(); cx.fillStyle = dk('#ffffff'); cx.beginPath(); cx.arc(x + 1, cy, rr*0.75, 0, 7); cx.fill();
+    cx.fillStyle = dk('#222222'); cx.font = '900 '+Math.round(7*s)+'px sans-serif'; cx.textAlign = 'center'; cx.fillText('50', x + 1, cy + 2.5*s); }
+  else {   // 公車站牌
+    cx.fillStyle = dk('#3d6fb0'); cx.fillRect(x - 5*s, gy - 66*s, 13*s, 9*s); cx.fillStyle = dk('#ffffff'); cx.fillRect(x - 5*s, gy - 57*s, 13*s, 18*s);
+    cx.fillStyle = dk('#9aa0a6'); for (let k = 0; k < 4; k++) cx.fillRect(x - 3*s, gy - 54*s + k*4*s, 9*s, 1.5*s); }
+}
 // 臺灣街屋: a row of 3–5 storey shophouses with 騎樓, 鐵窗, AC units, vertical signs and rooftop water tanks
 function streetRow(gy, n, par){
-  const s = S(), off = camX*par, dk = (c, f=0.7) => lerpC(c, '#1d2238', n*f);
+  const s = S(), off = camX*par, dk = (c, f=0.7) => lerpC(mute(c, 0.4), '#1d2238', n*f);
+  cx.save(); cx.globalAlpha = 0.62;
   const tiles = ['#e3d6c3','#d6c8b6','#c9cfd3','#e8cfc0','#d8d2c4','#c4b8a8','#e6e0d2'];
   const signs = ['#e53935','#1e88e5','#fbc02d','#43a047','#fb8c00','#8e24aa','#00897b'];
   let i = Math.floor(off/(90*s)) - 2;
@@ -241,15 +299,17 @@ function streetRow(gy, n, par){
     // parked scooters under the arcade
     for (let k = 0; k < 3; k++) if (rnd(i*11 + k) > 0.35) scooter(x + 14*s + k*bw*0.3, gy - 2*s, n, i + k, 0.42, rnd(i+k) > 0.5 ? 1 : -1, true);
   }
+  cx.restore();
 }
 // moving scooter traffic, world-anchored so nothing pops: each lane drifts at its own speed
-function traffic(y, n, speed, dir, spacing, sc, seed){
+function traffic(y, n, speed, dir, spacing, sc, seed, carShare = 0.4){
   const off = camX - t*speed*dir;
   for (let i = Math.floor(off/spacing) - 1; i < (off + W)/spacing + 2; i++){
     if (rnd(i*3.7 + seed) < 0.35) continue;
-    const x = i*spacing - off + rnd(i + seed)*spacing*0.4;
-    scooter(x, y + rnd(i*1.3 + seed)*6*S(), n, i + seed, sc*(0.9 + rnd(i*2.1 + seed)*0.2), dir);
-    if (rnd(i*5.3 + seed) > 0.55) scooter(x + 30*S()*sc, y + 8*S(), n, i + seed + 2, sc*0.95, dir);   // scooters ride in packs
+    const x = i*spacing - off + rnd(i + seed)*spacing*0.3;
+    if (rnd(i*8.9 + seed) < carShare){ car(x, y, n, i + seed, sc, dir); continue; }
+    scooter(x, y + rnd(i*1.3 + seed)*4*S(), n, i + seed, sc*(0.9 + rnd(i*2.1 + seed)*0.2), dir);
+    if (rnd(i*5.3 + seed) > 0.55) scooter(x + 30*S()*sc, y + 5*S(), n, i + seed + 2, sc*0.95, dir);   // scooters ride in packs
   }
 }
 
