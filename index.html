@@ -538,7 +538,7 @@ const MORE = [
 LANDMARKS.push(...MORE);
 
 // ---------- game ----------
-const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -190*S(), SPEED = () => 160*S();   // floatier, gentler
+const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -190*S(), SPEED = () => 160*S()*(1 + 0.35*Math.log(1 + score/3));   // floatier, gentler; speeds up on a log curve as the score grows
 // hold to jump higher: while the finger stays down (up to HOLD_MAX s) the head keeps rising
 const HOLD_MAX = 0.3, LIFT = () => 1500*S(), VMAX_UP = () => -270*S();
 let holding = false, holdStart = 0;
