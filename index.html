@@ -29,7 +29,7 @@
   #boardList li .rk{width:30px;text-align:center;font-size:16px} #boardList li .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   #boardList li .sc{color:#ff7a1a;font-size:18px} #boardList li.me{background:#fff0c2;border-radius:10px}
   #boardNote{text-align:center;color:#8a7a6a;font-size:13px;margin:10px 0}
-  #panel h1{margin:0 0 6px;font-size:min(6.2vw,28px);white-space:nowrap} #pn{white-space:nowrap;font-size:min(3.8vw,15px)} #panel .row{display:flex;justify-content:space-around;margin:12px 0;font-weight:800}
+  #panel h1{margin:0 0 6px;font-size:min(6.2vw,28px);white-space:nowrap} #pn{white-space:nowrap;font-size:min(3.8vw,15px)} #pcmp{white-space:normal;margin-top:6px;font-weight:900;color:#ff7a1a;font-size:min(4vw,16px)} #pfact{white-space:normal;margin-top:4px;font-size:min(3.4vw,13px);opacity:.8;line-height:1.45} #panel .row{display:flex;justify-content:space-around;margin:12px 0;font-weight:800}
   #panel .row b{display:block;font-size:30px;color:#ff7a1a} #panel p{margin:8px 0 0;color:#8a7a6a;font-size:14px}
   #ready{position:fixed;left:0;right:0;top:16%;text-align:center;color:#fff;font-weight:900;font-size:19px;pointer-events:none;line-height:1.6;
     text-shadow:0 3px 0 rgba(0,0,0,.35);transition:opacity .3s, transform .3s}
@@ -67,7 +67,7 @@
 <div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關・<span id="ver"></span></div>
 <div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">飛 越 臺 北</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
-<div id="panel"><h1>🐑 伸脖羊：「晚安！」</h1><div class="row"><div>分數<b id="ps">0</b></div><div>最佳<b id="pb">0</b></div></div><div id="pn"></div><div class="stats2" id="statsPanel"></div>
+<div id="panel"><h1>🐑 伸脖羊：「晚安！」</h1><div class="row"><div>分數<b id="ps">0</b></div><div>最佳<b id="pb">0</b></div></div><div id="pn"></div><div id="pcmp"></div><div id="pfact"></div><div class="stats2" id="statsPanel"></div>
 <div id="lbForm"><input id="nameIn" maxlength="12" placeholder="輸入名字上排行榜" autocomplete="nickname"><button class="pbtn" id="sendBtn">上傳</button></div>
 <div id="lbMsg"></div>
 <div class="btnrow"><button class="pbtn alt" id="boardBtn2" style="display:none">🏆 排行榜</button><button class="pbtn" id="againBtn">再玩一次</button></div></div>
@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.3.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.4.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -882,9 +882,53 @@ function die(){
   if (score > best){ best = score; try{ localStorage.setItem('sheepTaipeiBest', best); }catch(_){} ribbonBurst(); }
   setTimeout(()=>{
     document.getElementById('ps').textContent = score; document.getElementById('pb').textContent = best;
-    document.getElementById('pn').textContent = '脖子伸了 ' + neckMeters().toFixed(1) + ' m' + (score>0 && score===best ? '・🎉 新紀錄' : '');
+    const L = neckMeters();
+    document.getElementById('pn').textContent = '脖子伸了 ' + L.toFixed(1) + ' m' + (score>0 && score===best ? '・🎉 新紀錄' : '');
+    document.getElementById('pcmp').textContent = neckCompare(L); document.getElementById('pfact').textContent = neckFact(L);
     document.getElementById('panel').classList.add('on'); if (window.onGameOver) window.onGameOver(score);
   }, 500);
+}
+// ---- Taipei yardsticks for the game-over panel (approximate, rounded public figures) ----
+const YARDSTICKS = [
+  { m: 12,     t: '一台公車',             a: '長' },
+  { m: 23.5,   t: '一節捷運車廂',         a: '長' },
+  { m: 60,     t: '總統府中央塔',         a: '高' },
+  { m: 70,     t: '中正紀念堂',           a: '高' },
+  { m: 87,     t: '圓山大飯店',           a: '高' },
+  { m: 100,    t: '美麗華摩天輪',         a: '高' },
+  { m: 141,    t: '一整列板南線捷運',     a: '長' },
+  { m: 183,    t: '象山',                 a: '高' },
+  { m: 244,    t: '新光三越摩天大樓',     a: '高' },
+  { m: 272,    t: '南山廣場',             a: '高' },
+  { m: 382,    t: '101 的 89 樓觀景台',   a: '高' },
+  { m: 400,    t: '臺北田徑場跑一圈',     a: '長' },
+  { m: 508,    t: '台北 101',             a: '高' },
+  { m: 1120,   t: '七星山（臺北最高峰）', a: '高' },
+  { m: 4030,   t: '整條貓空纜車',         a: '長' },
+  { m: 25100,  t: '整條文湖線',           a: '長' },
+  { m: 42195,  t: '一場臺北馬拉松',       a: '長' },
+];
+const fmtM = m => m >= 1000 ? (m/1000).toFixed(m >= 10000 ? 1 : 2).replace(/\.?0+$/, '') + ' km' : (m < 10 ? m.toFixed(1) : Math.round(m)) + ' m';
+const zh = (a, b) => a + (/[0-9A-Za-z]$/.test(a) || /^[0-9A-Za-z]/.test(b) ? ' ' : '') + b;   // space only between Latin/digits and CJK
+function neckCompare(L){
+  let i = -1; while (i + 1 < YARDSTICKS.length && YARDSTICKS[i+1].m <= L) i++;
+  const nx = YARDSTICKS[i+1];
+  if (i < 0) return '還不到' + nx.t + '那麼' + nx.a + '（' + fmtM(nx.m) + '），再 ' + fmtM(nx.m - L) + '！';
+  const y = YARDSTICKS[i], k = L / y.m;
+  let line = k >= 1.95 ? zh('是' + y.t, '的 ') + k.toFixed(1) + ' 倍' + y.a + '！' : k < 1.05 ? zh('跟' + y.t, '一樣' + y.a + '！') : zh('比' + y.t, '還' + y.a + '！');
+  if (nx && k < 1.95) line += zh('再 ' + fmtM(nx.m - L) + ' 就追上', nx.t);
+  return line;
+}
+function neckFact(L){
+  const facts = [
+    () => { const um = L/2.5e6*1e6; return '臺北市約 250 萬人，脖子平分給每人約 ' + um.toFixed(um < 10 ? 1 : 0) + ' 微米，' + (um < 80 ? '比一根頭髮還細' : '大概 ' + Math.round(um/80) + ' 根頭髮粗'); },
+    () => '臺北市有 12 個行政區，平分下來每區有 ' + fmtM(L/12) + ' 脖子',
+    () => L >= 508 ? '立在 101 旁邊，羊頭會超過 101 的塔尖 ' + fmtM(L - 508) : '立在 101 旁邊，羊頭大約在第 ' + Math.max(1, Math.round(L/508*101)) + ' 層（101 地上 101 層）',
+    () => '跑完一場臺北馬拉松（42.195 km）的 ' + (L/42195*100).toFixed(L < 422 ? 2 : 1) + '%',
+    () => L < 24 ? '大概是一台公車的 ' + Math.round(L/12*100) + '%' : '大概是 ' + Math.round(L/12) + ' 台公車頭尾相接',
+    () => L < 4030 ? '是貓空纜車全長（約 4 km）的 ' + (L/4030*100).toFixed(1) + '%' : '可以把貓空纜車從頭到尾繞 ' + (L/4030).toFixed(1) + ' 次',
+  ];
+  return '📏 ' + facts[Math.floor(Math.random()*facts.length)]();
 }
 const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 
