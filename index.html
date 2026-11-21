@@ -16,7 +16,7 @@
   #panel.on{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
   #lbForm{display:none;gap:6px;margin:10px 0 2px} #lbForm.on{display:flex}
   #nameIn{flex:1;min-width:0;padding:8px 10px;border-radius:12px;border:2px solid #2b2b2b;font-size:15px;font-weight:700}
-  .pbtn{padding:8px 12px;border-radius:12px;border:2.5px solid #2b2b2b;background:#ffd23f;font-weight:900;font-size:14px;box-shadow:0 3px 0 #2b2b2b;cursor:pointer}
+  .pbtn{padding:8px 12px;border-radius:12px;border:2.5px solid #2b2b2b;background:#ffb067;font-weight:900;font-size:14px;box-shadow:0 3px 0 #2b2b2b;cursor:pointer}
   .pbtn.alt{background:#fff} .btnrow{display:flex;gap:8px;justify-content:center;margin-top:10px}
   #lbMsg{font-size:13px;color:#d6336c;font-weight:800;min-height:1em;margin-top:4px}
   #boardBtn{pointer-events:auto;margin:4px 0 14px}
@@ -27,30 +27,44 @@
   #boardList{list-style:none;margin:0;padding:0}
   #boardList li{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px dashed #e3d6c3;font-weight:800}
   #boardList li .rk{width:30px;text-align:center;font-size:16px} #boardList li .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  #boardList li .sc{color:#ff6f9c;font-size:18px} #boardList li.me{background:#fff0c2;border-radius:10px}
+  #boardList li .sc{color:#ff7a1a;font-size:18px} #boardList li.me{background:#fff0c2;border-radius:10px}
   #boardNote{text-align:center;color:#8a7a6a;font-size:13px;margin:10px 0}
   #panel h1{margin:0 0 6px;font-size:min(6.2vw,28px);white-space:nowrap} #pn{white-space:nowrap;font-size:min(3.8vw,15px)} #panel .row{display:flex;justify-content:space-around;margin:12px 0;font-weight:800}
-  #panel .row b{display:block;font-size:30px;color:#ff6f9c} #panel p{margin:8px 0 0;color:#8a7a6a;font-size:14px}
+  #panel .row b{display:block;font-size:30px;color:#ff7a1a} #panel p{margin:8px 0 0;color:#8a7a6a;font-size:14px}
   #ready{position:fixed;left:0;right:0;top:16%;text-align:center;color:#fff;font-weight:900;font-size:19px;pointer-events:none;line-height:1.6;
     text-shadow:0 3px 0 rgba(0,0,0,.35);transition:opacity .3s, transform .3s}
   #ready.off{opacity:0;transform:translateY(-20px)}
   #ready .logo{font-size:min(19vw,92px);letter-spacing:.04em;line-height:1.1;margin-bottom:2px}
-  #ready .logo span{display:inline-block;color:#fffdf7;-webkit-text-stroke:3px #2b2b2b;paint-order:stroke fill;text-shadow:0 6px 0 #ff6f9c, 0 10px 18px rgba(0,0,0,.25);
+  #ready .logo span{display:inline-block;color:#fffdf7;-webkit-text-stroke:3px #2b2b2b;paint-order:stroke fill;text-shadow:0 6px 0 #ff7a1a, 0 10px 18px rgba(120,40,0,.25);
     animation:bob 1.6s ease-in-out infinite}
   #ready .logo span:nth-child(2){animation-delay:.15s} #ready .logo span:nth-child(3){animation-delay:.3s}
   @keyframes bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
-  #ready .sub{font-size:16px;letter-spacing:.3em;margin-bottom:18px;color:#ffe3ec}
+  #ready .sub{font-size:16px;letter-spacing:.3em;margin-bottom:18px;color:#fff3e6}
+  #fanNote{position:fixed;left:0;right:0;bottom:10px;text-align:center;color:rgba(255,255,255,.85);font-size:11px;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,.4)}
   #badge{position:fixed;top:12px;left:12px;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:15px;padding:6px 12px;border-radius:16px;
-    border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #ff6f9c;pointer-events:none}
+    border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #ff7a1a;pointer-events:none}
   .stats{font-size:15px;margin:-8px 0 14px;color:#fff;letter-spacing:.05em}
   .stats2{font-size:13px;color:#8a7a6a;margin-top:6px;white-space:nowrap}
+  #drops{position:fixed;top:114px;left:12px;color:#fff;font-size:15px;font-weight:900;pointer-events:none;padding:0 4px;
+    text-shadow:0 1px 0 rgba(0,0,0,.5),0 0 6px rgba(0,0,0,.5)}
+  #drops:empty{display:none}
+  #drops.pop{animation:dpop .35s ease-out}
+  @keyframes dpop{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+  #partyGlow{position:fixed;inset:0;pointer-events:none;z-index:25;opacity:0;transition:opacity .4s;
+    box-shadow:inset 0 0 60px 18px rgba(255,122,26,.85), inset 0 0 140px 40px rgba(255,190,120,.45)}
+  #partyGlow.on{opacity:1;animation:glow .5s ease-in-out infinite alternate}
+  @keyframes glow{from{filter:brightness(1)}to{filter:brightness(1.35)}}
+  #partyBanner{position:fixed;left:0;right:0;top:20%;text-align:center;z-index:26;pointer-events:none;color:#fff;font-weight:900;
+    font-size:min(11vw,56px);-webkit-text-stroke:3px #ff7a1a;paint-order:stroke fill;text-shadow:0 5px 0 #c4500a;opacity:0;transform:scale(.6);transition:all .35s cubic-bezier(.2,1.6,.4,1)}
+  #partyBanner.on{opacity:1;transform:scale(1)}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="score">0</div>
-<div id="neck"></div>
-<div id="badge">🐑 伸脖羊</div>
+<div id="neck"></div><div id="drops"></div>
+<div id="partyGlow"></div><div id="partyBanner">🌊 洋流衝刺！</div>
+<div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關</div>
 <div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">飛 越 臺 北</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
 <div id="panel"><h1>🐑 伸脖羊：「晚安！」</h1><div class="row"><div>分數<b id="ps">0</b></div><div>最佳<b id="pb">0</b></div></div><div id="pn"></div><div class="stats2" id="statsPanel"></div>
@@ -87,6 +101,9 @@ function drawBody(){
   for (const [ox,oy,r] of [[0,0,50],[-48,6,42],[44,2,40],[-20,-28,38],[22,-26,38],[0,20,38]]) puff(bx+ox*s, by+oy*s, r*s, '#eeeae0');
   for (const [ox,oy,r] of [[0,0,44],[-48,6,36],[44,2,34],[-20,-28,32],[22,-26,32]]) puff(bx+ox*s-4, by+oy*s-4, r*s);
   puff(bx-95*s, by-14*s+Math.sin(t*5)*4*s, 13*s);
+  // orange scarf where the neck leaves the body
+  cx.fillStyle = '#ff7a1a'; cx.beginPath(); cx.ellipse(bx+48*s, by-28*s, 22*s, 12*s, -0.5, 0, 7); cx.fill();
+  cx.beginPath(); cx.moveTo(bx+40*s, by-22*s); cx.lineTo(bx+30*s+Math.sin(t*6)*4*s, by+6*s); cx.lineTo(bx+44*s, by+2*s); cx.closePath(); cx.fill();
   // wooden name sign: 伸脖羊
   const sx = bx + 125*s, sy = gy - 46*s;
   cx.fillStyle = '#7a4a24'; cx.fillRect(sx-3, sy, 6, gy-sy);
@@ -96,7 +113,7 @@ function drawBody(){
 }
 
 // ---------- Taipei backdrop ----------
-const SKY = [['#6ec6ff','#d9f1ff'],['#ff9f7a','#ffd9a8'],['#2a2f6e','#7a5a9a'],['#0b1440','#27306a']];
+const SKY = [['#ffb067','#fff1dc'],['#ff8a3d','#ffd3a1'],['#3a2a6e','#ff9a5a'],['#141a44','#3a2a6e']];
 const lerpC = (a,b,k)=>{ const p=s=>[1,3,5].map(i=>parseInt(s.slice(i,i+2),16)); const A=p(a),B=p(b);
   return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join(''); };
 function skyCol(j){ const f = (camX/4000) % SKY.length, i = Math.floor(f), k = f - i; return lerpC(SKY[i][j], SKY[(i+1)%SKY.length][j], k); }
@@ -106,13 +123,25 @@ function drawBackdrop(){
   const g = cx.createLinearGradient(0,0,0,gy); g.addColorStop(0, skyCol(0)); g.addColorStop(1, skyCol(1)); cx.fillStyle = g; cx.fillRect(0,0,W,H);
   if (n > 0.3){ cx.fillStyle='#fff'; for (let i=0;i<50;i++){ cx.globalAlpha=(n-0.3)*(0.5+0.5*Math.sin(t*2+i)); cx.fillRect(rnd(i)*W, rnd(i+7)*gy*0.6, 2, 2); } cx.globalAlpha=1;
     cx.fillStyle='rgba(255,243,196,'+n+')'; cx.beginPath(); cx.arc(W*0.8, H*0.14, 26, 0, 7); cx.fill(); }
+  // 洋流: wide flowing bands across the sky (parallax 0.05), with silver-foil glints like light on water
+  for (const [k, col, amp, yy, thick] of [[0,'rgba(255,122,26,.55)',22,0.30,26],[1,'rgba(255,190,120,.55)',18,0.36,18],[2,'rgba(40,170,190,.45)',14,0.41,14]]){
+    cx.beginPath();
+    for (let x=-10; x<=W+10; x+=12){ const wx = x + camX*0.05 + t*(40+k*12); const y0 = gy*yy + Math.sin(wx*0.012 + k)*amp*S() + Math.sin(wx*0.031)*amp*0.35*S();
+      x === -10 ? cx.moveTo(x, y0) : cx.lineTo(x, y0); }
+    for (let x=W+10; x>=-10; x-=12){ const wx = x + camX*0.05 + t*(40+k*12); const y0 = gy*yy + thick*S() + Math.sin(wx*0.012 + k + 0.6)*amp*S() + Math.sin(wx*0.031)*amp*0.35*S();
+      cx.lineTo(x, y0); }
+    cx.closePath(); cx.fillStyle = col; cx.fill();
+  }
+  for (let i=0;i<26;i++){ const gx = (rnd(i)*W*1.3 - (camX*0.05 + t*50)) % (W*1.3); const x = gx < -20 ? gx + W*1.3 : gx;
+    const y0 = gy*(0.29 + rnd(i+3)*0.14), a = Math.max(0, Math.sin(t*3 + i*1.7));
+    cx.fillStyle = 'rgba(255,255,255,'+(a*0.9)+')'; cx.beginPath(); cx.moveTo(x, y0-5*a); cx.lineTo(x+2, y0); cx.lineTo(x, y0+5*a); cx.lineTo(x-2, y0); cx.fill(); }
   // 陽明山 (parallax 0.1)
-  cx.fillStyle = lerpC('#7fb38a','#1d2b40', n);
+  cx.fillStyle = lerpC('#e8a46c','#2a2140', n);
   cx.beginPath(); cx.moveTo(0, gy-120*S());
   for (let x=0;x<=W+20;x+=20){ const wx=x+camX*0.1; cx.lineTo(x, gy-150*S()-60*S()*Math.sin(wx*0.004)-30*S()*Math.sin(wx*0.011)); }
   cx.lineTo(W,gy); cx.lineTo(0,gy); cx.fill();
   // far skyline (parallax 0.35), with a far-off 101 every so often
-  const far = lerpC('#9fb3c8','#2a3558', n);
+  const far = lerpC('#d9b9a0','#3a2c58', n);
   for (let i=Math.floor(camX*0.35/46)-1; i<(camX*0.35+W)/46+1; i++){
     const x = i*46 - camX*0.35, h = (40 + rnd(i)*110)*S();
     cx.fillStyle = far; cx.fillRect(x, gy-h, 40, h);
@@ -552,12 +581,35 @@ let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs fast
 const curGap = () => Math.max(120, 280 - 4*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
 let spawned = 0, lastCentre = null;
+// ---- 小水滴 & 洋流衝刺 (party time) ----
+const DROP_EVERY = 3, DROP_NEED = 5, DASH_TIME = 5, DASH_SPEED = 1.7;
+const pops = [];
+let drops = 0, dash = 0, grace = 0, dashFx = 0, partyTimer = 0;
+const updateDrops = () => { const el = document.getElementById('drops'); if (!el) return;
+  el.textContent = state === 'ready' ? '' : '💧 ' + drops + ' / ' + DROP_NEED; };
+function startDash(){
+  dash = DASH_TIME; partyTimer = 0; ribbonBurst();
+  document.getElementById('partyBanner').classList.add('on'); document.getElementById('partyGlow').classList.add('on');
+  setTimeout(()=>document.getElementById('partyBanner').classList.remove('on'), 1600);
+}
+function drawDrop(x, y){   // a teardrop with a shine, bobbing gently
+  const s = S(), r = 13*s, yy = y + Math.sin(t*3 + x*0.01)*5*s;
+  cx.save(); cx.translate(x, yy);
+  cx.fillStyle = 'rgba(255,255,255,.35)'; cx.beginPath(); cx.arc(0, 4*s, r*1.9, 0, 7); cx.fill();
+  const g = cx.createLinearGradient(0, -r*1.8, 0, r); g.addColorStop(0, '#9ff0ff'); g.addColorStop(1, '#1fa6d6');
+  cx.fillStyle = g; cx.beginPath(); cx.moveTo(0, -r*1.8); cx.bezierCurveTo(r*0.9, -r*0.6, r*1.1, 0, r, r*0.3);
+  cx.arc(0, r*0.3, r, 0, Math.PI); cx.bezierCurveTo(-r*1.1, 0, -r*0.9, -r*0.6, 0, -r*1.8); cx.fill();
+  cx.strokeStyle = '#fff'; cx.lineWidth = 2*s; cx.stroke();
+  cx.fillStyle = 'rgba(255,255,255,.85)'; cx.beginPath(); cx.ellipse(-r*0.35, -r*0.1, r*0.22, r*0.4, -0.4, 0, 7); cx.fill();
+  cx.restore();
+}
 let state = 'ready', y = 0, vy = 0, score = 0, best = 0, deadT = 0, trail = [], obs = [], nextOb = 0, flapT = 0, shake = 0;
 const recent = [];
 try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
 function reset(){
-  state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = headX() + 420*S();   // first obstacle a fixed distance ahead of the head, whatever the screen width recent.length = 0;
+  state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = headX() + 420*S(); recent.length = 0;   // first obstacle a fixed distance ahead of the head, whatever the screen width
+  drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; updateDrops();
   trail = [{ ...neckBase(), d: 0 }];
   document.getElementById('score').textContent = 0; document.getElementById('neck').textContent = '';
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
@@ -566,7 +618,7 @@ reset();
 function tap(e){
   e && e.preventDefault && e.preventDefault();
   if (state === 'dead'){ if (t - deadT > 0.7) reset(); return; }
-  if (state === 'ready'){ state = 'play'; document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
+  if (state === 'ready'){ state = 'play'; setTimeout(updateDrops, 0); document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
   vy = FLAP(); flapT = t; holding = true; holdStart = gt;
 }
 cv.addEventListener('pointerdown', tap);
@@ -592,7 +644,7 @@ function addObstacle(atX){
   const gapTop = Math.max(lo, Math.min(hi, centre - gap/2)); lastCentre = gapTop + gap/2;
   const bottomH = groundY() - gapTop - gap, topH = gapTop + 10;
   const kb = pickKind(bottomH), kt = pickKind(topH);
-  obs.push({ cx: atX, gapTop, gap, kb, kt, passed:false });
+  obs.push({ cx: atX, gapTop, gap, kb, kt, passed:false, drop: spawned % DROP_EVERY === 0, got: false });
 }
 const obW = k => OB_W()*LANDMARKS[k].wm;
 function boxesOf(o){
@@ -619,6 +671,13 @@ function ribbonBurst(){
     });
   }
   try{ navigator.vibrate && navigator.vibrate([30,40,30]); }catch(_){}
+}
+function ribbonPuff(){
+  const s = S(), side = Math.floor(Math.random()*3);   // left, right, bottom
+  const x = side === 0 ? -20 : side === 1 ? W + 20 : Math.random()*W, y = side === 2 ? H + 20 : H*(0.2 + Math.random()*0.7);
+  ribbons.push({ x, y, vx: side === 0 ? (200+Math.random()*200)*s : side === 1 ? -(200+Math.random()*200)*s : (Math.random()-0.5)*200*s,
+    vy: -(300 + Math.random()*500)*s, ang: 0, spin: (Math.random()-0.5)*1.6, len: (100 + Math.random()*80)*s, wid: (12 + Math.random()*5)*s,
+    ph: Math.random()*6, life: 0.8, delay: 0 });
 }
 function drawRibbons(dt){
   rctx.setTransform(DPR,0,0,DPR,0,0); rctx.clearRect(0,0,W,H);
@@ -679,10 +738,16 @@ function die(){
 const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 
 function update(dt){
+  if (dash > 0){ dash -= dt; partyTimer -= dt;
+    if (partyTimer <= 0){ partyTimer = 0.3; ribbonPuff(); }
+    if (dash <= 0){ dash = 0; grace = 1.2; document.getElementById('partyGlow').classList.remove('on'); } }
+  else if (grace > 0) grace -= dt;
+  dashFx += ((dash > 0 ? 1 : 0) - dashFx) * Math.min(1, dt*6);
+  if (state === 'dead'){ dash = 0; document.getElementById('partyGlow').classList.remove('on'); }
   if (state !== 'dead') while (nextOb < camX + W + 160){ addObstacle(nextOb); nextOb += SPACING(); }
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
   if (state === 'play'){
-    const gdt = dt*speedK(); gt += gdt;
+    const gdt = dt*speedK()*(dash > 0 ? DASH_SPEED : 1); gt += gdt;
     camX += SPEED()*gdt; vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
     if (holding && gt - holdStart < HOLD_MAX) vy = Math.max(VMAX_UP(), vy - LIFT()*gdt);
     y += vy*gdt;
@@ -690,9 +755,15 @@ function update(dt){
     for (const o of obs){
       const half = Math.max(obW(o.kb), obW(o.kt))/2;
       if (!o.passed && o.cx + half < hx - r){ o.passed = true; score++; document.getElementById('score').textContent = score; }
-      if (Math.abs(o.cx - hx) < half + r && touchesShape(o)) die();
+      if (dash <= 0 && grace <= 0 && Math.abs(o.cx - hx) < half + r && touchesShape(o)) die();
+      if (o.drop && !o.got && Math.hypot(o.cx - hx, (o.gapTop + o.gap/2) - y) < r + 16*S()){
+        o.got = true; pops.push({ x: o.cx, y: o.gapTop + o.gap/2, t: 0, text: '+💧' });
+        if (dash <= 0 && ++drops >= DROP_NEED){ drops = 0; startDash(); }
+        updateDrops(); const el = document.getElementById('drops'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+        try{ navigator.vibrate && navigator.vibrate(15); }catch(_){}
+      }
     }
-    if (y + r > groundY()){ y = groundY() - r; die(); }
+    if (y + r > groundY()){ y = groundY() - r; if (dash > 0 || grace > 0) vy = Math.min(vy, -200*S()); else die(); }
     if (y - r < -40){ y = r - 40; vy = 0; }
     document.getElementById('neck').textContent = '脖子 ' + neckMeters().toFixed(1) + ' m';
   }
@@ -723,13 +794,16 @@ function touchesShape(o){
 }
 function drawObstacles(n, list = obs, labels = true){
   const gy = groundY();
+  if (labels) for (const o of list){ if (o.drop && !o.got){ const sx = o.cx - camX; if (sx > -40 && sx < W + 40) drawDrop(sx, o.gapTop + o.gap/2); } }
   for (const o of list){
     const sx = o.cx - camX; if (sx < -200 || sx > W + 200) continue;
-    { const w = obW(o.kb), x = sx - w/2; LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false);
+    { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ cx.globalAlpha = 1 - 0.7*dashFx; cx.translate(0, gy); cx.scale(1, 1 - 0.75*dashFx); cx.translate(0, -gy); }
+      LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.6)'; cx.shadowBlur=5; cx.fillText(LANDMARKS[o.kb].name, sx, gy + 26*S()); cx.shadowBlur=0; } }
     { const w = obW(o.kt), x = sx - w/2;
-      cx.save(); cx.translate(0, o.gapTop); cx.scale(1, -1);            // the hanging, upside-down landmark
+      cx.save(); if (dashFx > 0.01){ cx.globalAlpha = 1 - 0.7*dashFx; cx.translate(0, -10); cx.scale(1, 1 - 0.75*dashFx); cx.translate(0, 10); }
+      cx.translate(0, o.gapTop); cx.scale(1, -1);            // the hanging, upside-down landmark
       LANDMARKS[o.kt].draw(x, 0, w, o.gapTop + 10, n, true); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.7)'; cx.shadowBlur=5; if (o.gapTop > 90*S() && sx > 150*S()) cx.fillText('↓ '+LANDMARKS[o.kt].name, sx, 68*S()); cx.shadowBlur=0; } }
@@ -796,9 +870,13 @@ function frame(now){
   const n = nightness();
   cx.save(); if (shake>0.01) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
   drawBackdrop();
-  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1;
+  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
   drawObstacles(n);
   drawNeckAndHead();
+  for (let i=pops.length-1;i>=0;i--){ const p=pops[i]; p.t+=dt;
+    cx.globalAlpha = Math.max(0, 1-p.t); cx.fillStyle='#fff'; cx.font='900 '+Math.round(18*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center';
+    cx.shadowColor='#1fa6d6'; cx.shadowBlur=8; cx.fillText(p.text, p.x-camX, p.y-30-p.t*40); cx.shadowBlur=0; cx.globalAlpha=1;
+    if (p.t>1) pops.splice(i,1); }
   cx.restore();
   drawRibbons(dt);
   requestAnimationFrame(frame);
