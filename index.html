@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.6.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.7.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -170,15 +170,56 @@ function drawBackdrop(){
     if (rnd(i*2.3) > 0.4) roadSign(x0 + SEG*0.85, gy, n, i);
   }
   cx.fillStyle = 'rgba(255,255,255,.7)'; cx.fillRect(0, laneTop, W, 1.5*sS);   // parking-lane edge (white solid)
-  cx.fillStyle = lerpC('#e8c13a', '#6b5a20', n); cx.fillRect(0, gy + rh*0.66, W, 1.5*sS); cx.fillRect(0, gy + rh*0.66 + 3*sS, W, 1.5*sS);   // double yellow centre line
   cx.fillStyle = 'rgba(255,255,255,.55)'; for (let x = -((camX)%40); x<W; x+=40) cx.fillRect(x, gy + rh*0.84, 20, 1.5*sS);   // scooter lane line
-  for (let i = Math.floor(camX/900) - 1; i < (camX + W)/900 + 1; i++){
-    const zx = i*900 - camX + 500;
+  const IX = 900, ZW = 84*sS, medY = gy + rh*0.66, dkS = v => lerpC(mute(v, 0.3), '#1d2238', n*0.6);
+  for (let i = Math.floor(camX/IX) - 1; i < (camX + W)/IX + 1; i++){
+    const zx = i*IX - camX + 500;
+    // 分隔島: raised median with shrubs and small trees between intersections, broken at the crossing
+    const m0 = zx + ZW + 30*sS, m1 = zx + IX - 70*sS;
+    if (m1 > 0 && m0 < W){
+      cx.fillStyle = dkS('#c9c5bc'); cx.fillRect(m0, medY - 1*sS, m1 - m0, 5*sS);
+      cx.fillStyle = dkS('#f2d34a'); cx.fillRect(m0, medY + 3*sS, m1 - m0, 1*sS);
+      cx.fillStyle = dkS('#6fa36a'); for (let x = m0 + 6*sS; x < m1 - 4*sS; x += 14*sS){ cx.beginPath(); cx.arc(x, medY - 2*sS, 5*sS, Math.PI, 0); cx.fill(); }
+      for (let x = m0 + 60*sS; x < m1 - 30*sS; x += 140*sS){ cx.fillStyle = dkS('#7a5a3a'); cx.fillRect(x - 1*sS, medY - 16*sS, 2*sS, 14*sS);
+        cx.fillStyle = dkS('#5f9a5a'); cx.beginPath(); cx.arc(x, medY - 18*sS, 7*sS, 0, 7); cx.fill(); }
+      // keep-right sign at the median nose
+      cx.fillStyle = dkS('#8a8f96'); cx.fillRect(m0 + 2*sS, medY - 20*sS, 1.5*sS, 19*sS);
+      cx.fillStyle = dkS('#3d6fb0'); cx.beginPath(); cx.arc(m0 + 2.7*sS, medY - 22*sS, 4.5*sS, 0, 7); cx.fill();
+      cx.strokeStyle = dkS('#ffffff'); cx.lineWidth = 1.2*sS; cx.beginPath(); cx.moveTo(m0 + 0.5*sS, medY - 24*sS); cx.lineTo(m0 + 4.5*sS, medY - 20.5*sS); cx.stroke();
+    }
+    // double yellow continues briefly into the crossing approach
+    cx.fillStyle = lerpC('#e8c13a', '#6b5a20', n); cx.fillRect(m1, medY, IX - (m1 - zx) - 4*sS, 1.2*sS); cx.fillRect(m1, medY + 2.5*sS, IX - (m1 - zx) - 4*sS, 1.2*sS);
+    // stop lines + turn arrows painted before the crossing (far lane flows left, near lane flows right)
+    cx.fillStyle = 'rgba(255,255,255,.8)';
+    cx.fillRect(zx + ZW + 8*sS, gy + rh*0.4, 2*sS, medY - gy - rh*0.4 - 2*sS);
+    cx.fillRect(zx - 10*sS, medY + 6*sS, 2*sS, H - medY - 8*sS);
+    const arrow = (x, y, dir, turn) => { cx.save(); cx.translate(x, y); cx.scale(dir*sS, sS); cx.fillStyle = 'rgba(255,255,255,.75)';
+      cx.fillRect(-14, -1, 18, 2); cx.beginPath(); cx.moveTo(10, 0); cx.lineTo(4, -4); cx.lineTo(4, 4); cx.fill();
+      if (turn){ cx.fillRect(-4, -6, 2, 6); cx.beginPath(); cx.moveTo(-3, -10); cx.lineTo(-7, -5); cx.lineTo(1, -5); cx.fill(); } cx.restore(); };
+    arrow(zx + ZW + 40*sS, gy + rh*0.5, -1, true); arrow(zx + ZW + 80*sS, gy + rh*0.5, -1, false);
+    arrow(zx - 60*sS, gy + rh*0.77, 1, true); arrow(zx - 110*sS, gy + rh*0.77, 1, false);
+    cx.fillStyle = 'rgba(255,255,255,.65)'; cx.font = '900 '+Math.round(10*sS)+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign = 'center';
+    cx.fillText('慢', zx - 170*sS, gy + rh*0.8);
+    // zebra crossing + 機車待轉格
     cx.fillStyle = 'rgba(255,255,255,.7)'; for (let k = 0; k < 6; k++) cx.fillRect(zx + k*14*sS, laneTop + 2*sS, 8*sS, rh - (laneTop - gy) - 4*sS);
-    cx.strokeStyle = 'rgba(255,255,255,.75)'; cx.lineWidth = 1.5; cx.strokeRect(zx + 100*sS, gy + rh*0.7, 44*sS, rh*0.12);   // 機車待轉格
-    const lx = zx - 24*sS; cx.fillStyle = '#4a4d55'; cx.fillRect(lx, gy - 64*sS, 3*sS, 64*sS); cx.fillRect(lx - 4*sS, gy - 70*sS, 11*sS, 24*sS);
-    const ph = (t*0.25 + i*0.37) % 1; cx.fillStyle = ph < 0.5 ? '#5bc46c' : '#4a4d55'; cx.beginPath(); cx.arc(lx + 1.5*sS, gy - 52*sS, 3*sS, 0, 7); cx.fill();
-    cx.fillStyle = ph >= 0.5 ? '#e86a5a' : '#4a4d55'; cx.beginPath(); cx.arc(lx + 1.5*sS, gy - 64*sS, 3*sS, 0, 7); cx.fill();
+    cx.strokeStyle = 'rgba(255,255,255,.75)'; cx.lineWidth = 1.5; cx.strokeRect(zx + ZW + 14*sS, gy + rh*0.7, 40*sS, rh*0.12);
+    // 懸臂式紅綠燈: tall pole, arm over the road, horizontal red/yellow/green + left-turn arrow, a blue direction board, and a 小綠人 signal
+    const lx = zx - 20*sS, top = gy - 96*sS, ph = (t*0.18 + i*0.37) % 1, light = ph < 0.55 ? 2 : ph < 0.65 ? 1 : 0;
+    cx.fillStyle = dkS('#5a5e66'); cx.fillRect(lx, top, 3.5*sS, 96*sS); cx.fillRect(lx, top + 4*sS, 70*sS, 2.5*sS);
+    cx.fillStyle = dkS('#2f3238'); cx.beginPath(); cx.roundRect(lx + 36*sS, top + 6*sS, 32*sS, 9*sS, 2); cx.fill();
+    ['#e05a4a','#e8b93a','#4fc46a'].forEach((c, k) => { cx.fillStyle = light === (2 - k) ? c : '#454950'; cx.beginPath(); cx.arc(lx + 41*sS + k*8*sS, top + 10.5*sS, 3*sS, 0, 7); cx.fill(); });
+    cx.fillStyle = dkS('#2f3238'); cx.beginPath(); cx.roundRect(lx + 52*sS, top + 15*sS, 10*sS, 9*sS, 2); cx.fill();
+    cx.fillStyle = light === 2 && ph < 0.3 ? '#4fc46a' : '#454950'; cx.beginPath(); cx.moveTo(lx + 54*sS, top + 19.5*sS); cx.lineTo(lx + 58*sS, top + 16.5*sS); cx.lineTo(lx + 58*sS, top + 22.5*sS); cx.fill();
+    cx.fillStyle = dkS('#2f6fb3'); cx.beginPath(); cx.roundRect(lx + 6*sS, top + 8*sS, 26*sS, 16*sS, 2); cx.fill();
+    cx.fillStyle = dkS('#ffffff'); cx.font = '800 '+Math.round(6*sS)+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign = 'center';
+    cx.fillText('← ' + pick(ROADS, i*3).slice(0, 3), lx + 19*sS, top + 14.5*sS); cx.fillText(pick(ROADS, i*5 + 1).slice(0, 3) + ' →', lx + 19*sS, top + 21.5*sS);
+    cx.fillStyle = dkS('#2f3238'); cx.fillRect(lx + 4*sS, gy - 44*sS, 9*sS, 14*sS);
+    const walk = light !== 2; cx.fillStyle = walk ? '#4fc46a' : '#454950'; cx.fillRect(lx + 7*sS, gy - 42*sS, 3*sS, 5*sS);
+    cx.fillStyle = walk ? '#454950' : '#e05a4a'; cx.fillRect(lx + 7*sS, gy - 36*sS, 3*sS, 5*sS);
+    // 行人穿越道 sign on the far side of the crossing
+    const px = zx + ZW + 6*sS; cx.fillStyle = dkS('#8a8f96'); cx.fillRect(px, gy - 50*sS, 2*sS, 50*sS);
+    cx.fillStyle = dkS('#3d6fb0'); cx.fillRect(px - 5*sS, gy - 60*sS, 12*sS, 12*sS); cx.fillStyle = dkS('#ffffff');
+    cx.beginPath(); cx.moveTo(px + 1*sS, gy - 58.5*sS); cx.lineTo(px + 5.5*sS, gy - 50*sS); cx.lineTo(px - 3.5*sS, gy - 50*sS); cx.fill();
   }
   // street lamps
   for (let i=Math.floor(camX/180)-1; i<(camX+W)/180+1; i++){
