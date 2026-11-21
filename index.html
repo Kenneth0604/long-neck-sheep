@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.7.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.7.1';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -989,24 +989,24 @@ function die(){
     document.getElementById('panel').classList.add('on'); if (window.onGameOver) window.onGameOver(score);
   }, 500);
 }
-// ---- Taipei yardsticks for the game-over panel (approximate, rounded public figures) ----
+// ---- Taipei yardsticks for the game-over panel; checked 2026-11 against Wikipedia, 總統府, udn (rounded) ----
 const YARDSTICKS = [
   { m: 12,     t: '一台公車',             a: '長' },
   { m: 23.5,   t: '一節捷運車廂',         a: '長' },
   { m: 60,     t: '總統府中央塔',         a: '高' },
-  { m: 70,     t: '中正紀念堂',           a: '高' },
+  { m: 76,     t: '中正紀念堂',           a: '高' },
   { m: 87,     t: '圓山大飯店',           a: '高' },
   { m: 100,    t: '美麗華摩天輪',         a: '高' },
   { m: 141,    t: '一整列板南線捷運',     a: '長' },
   { m: 183,    t: '象山',                 a: '高' },
-  { m: 244,    t: '新光三越摩天大樓',     a: '高' },
+  { m: 245,    t: '新光三越摩天大樓',     a: '高' },
   { m: 272,    t: '南山廣場',             a: '高' },
-  { m: 382,    t: '101 的 89 樓觀景台',   a: '高' },
+  { m: 383,    t: '101 的 89 樓觀景台',   a: '高' },
   { m: 400,    t: '臺北田徑場跑一圈',     a: '長' },
   { m: 508,    t: '台北 101',             a: '高' },
   { m: 1120,   t: '七星山（臺北最高峰）', a: '高' },
   { m: 4030,   t: '整條貓空纜車',         a: '長' },
-  { m: 25100,  t: '整條文湖線',           a: '長' },
+  { m: 25700,  t: '整條文湖線',           a: '長' },
   { m: 42195,  t: '一場臺北馬拉松',       a: '長' },
 ];
 const fmtM = m => m >= 1000 ? (m/1000).toFixed(m >= 10000 ? 1 : 2).replace(/\.?0+$/, '') + ' km' : (m < 10 ? m.toFixed(1) : Math.round(m)) + ' m';
@@ -1022,7 +1022,7 @@ function neckCompare(L){
 }
 function neckFact(L){
   const facts = [
-    () => { const um = L/2.5e6*1e6; return '臺北市約 250 萬人，脖子平分給每人約 ' + um.toFixed(um < 10 ? 1 : 0) + ' 微米，' + (um < 80 ? '比一根頭髮還細' : '大概 ' + Math.round(um/80) + ' 根頭髮粗'); },
+    () => { const um = L/2.49e6*1e6; return '臺北市約 249 萬人，脖子平分給每人約 ' + um.toFixed(um < 10 ? 1 : 0) + ' 微米，' + (um < 80 ? '比一根頭髮還細' : '大概 ' + Math.round(um/80) + ' 根頭髮粗'); },
     () => '臺北市有 12 個行政區，平分下來每區有 ' + fmtM(L/12) + ' 脖子',
     () => L >= 508 ? '立在 101 旁邊，羊頭會超過 101 的塔尖 ' + fmtM(L - 508) : '立在 101 旁邊，羊頭大約在第 ' + Math.max(1, Math.round(L/508*101)) + ' 層（101 地上 101 層）',
     () => '跑完一場臺北馬拉松（42.195 km）的 ' + (L/42195*100).toFixed(L < 422 ? 2 : 1) + '%',
