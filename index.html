@@ -554,7 +554,7 @@ try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
 function reset(){
   state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; nextOb = W*1.15; recent.length = 0;
-  trail = [neckBase()];
+  trail = [{ ...neckBase(), d: 0 }];
   document.getElementById('score').textContent = 0; document.getElementById('neck').textContent = '';
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
 }
@@ -629,7 +629,7 @@ function update(dt){
   if (state === 'dead'){ vy += GRAV()*dt; y = Math.min(groundY() - headR(), y + vy*dt); }
   obs = obs.filter(o => o.cx > camX - 300);
   if (state === 'play'){ const hp = { x: camX + headX(), y }, lp = trail[trail.length-1];
-    if (Math.hypot(hp.x-lp.x, hp.y-lp.y) > 6) trail.push(hp); }
+    const step = Math.hypot(hp.x-lp.x, hp.y-lp.y); if (step > 6){ hp.d = (lp.d || 0) + step; trail.push(hp); } }
   shake *= Math.pow(0.01, dt);
 }
 // ---- collision that follows the actual drawn shapes ----
@@ -668,19 +668,37 @@ function drawObstacles(n, list = obs, labels = true){
 
 function drawNeckAndHead(){
   const s = S(), hx = headX(), hy = y, thick = 14*s;
+  // visible neck points, each with its arc length `d` from the body (stable, so the fur doesn't flicker)
   const pts = []; let firstOn = 0;
   for (let i=0;i<trail.length;i++) if (trail[i].x - camX < -60) firstOn = i;
-  for (let i=firstOn;i<trail.length;i++) pts.push({ x: trail[i].x - camX, y: trail[i].y });
-  pts.push({ x: hx, y: hy });
-  if (state === 'ready'){ const b = neckBase(); pts.length = 0;
-    for (let i=0;i<=12;i++){ const u=i/12; pts.push({ x: b.x-camX + (hx-(b.x-camX))*u, y: b.y + (hy-b.y)*u - Math.sin(u*Math.PI)*30*s }); } }
+  for (let i=firstOn;i<trail.length;i++) pts.push({ x: trail[i].x - camX, y: trail[i].y, d: trail[i].d || 0 });
+  { const l = pts[pts.length-1]; pts.push({ x: hx, y: hy, d: l.d + Math.hypot(hx-l.x, hy-l.y) }); }
+  if (state === 'ready'){ const b = neckBase(); pts.length = 0; let d = 0, px = 0, py = 0;
+    for (let i=0;i<=16;i++){ const u=i/16, x = b.x-camX + (hx-(b.x-camX))*u, yy = b.y + (hy-b.y)*u - Math.sin(u*Math.PI)*30*s;
+      if (i) d += Math.hypot(x-px, yy-py); pts.push({ x, y: yy, d }); px = x; py = yy; } }
+  const path = () => { cx.beginPath(); cx.moveTo(pts[0].x, pts[0].y); for (const p of pts) cx.lineTo(p.x, p.y); };
   cx.lineCap='round'; cx.lineJoin='round';
-  cx.beginPath(); cx.moveTo(pts[0].x, pts[0].y); for (const p of pts) cx.lineTo(p.x, p.y);
-  cx.strokeStyle='#e4dfd2'; cx.lineWidth=thick*2+4; cx.stroke(); cx.strokeStyle='#fffdf7'; cx.lineWidth=thick*2-2; cx.stroke();
-  let acc = 0, k = firstOn;
-  for (let i=1;i<pts.length;i++){ const a=pts[i-1], c=pts[i], d=Math.hypot(c.x-a.x,c.y-a.y)||0.001;
-    let u = (14*s - acc)/d; while (u <= 1){ k++; puff(a.x+(c.x-a.x)*u, a.y+(c.y-a.y)*u - thick*0.5, thick*0.55, k%2?'#fffdf7':'#f3efe5'); u += 14*s/d; }
-    acc = (acc + d) % (14*s); }
+  // 1) soft shadow outline
+  path(); cx.strokeStyle='#d9d3c5'; cx.lineWidth=thick*2+7*s; cx.stroke();
+  // 2) fluffy edge: little tufts poking out along both sides of the neck
+  const STEP = 5*s;
+  const walk = fn => { for (let i=1;i<pts.length;i++){ const a=pts[i-1], c=pts[i], L=Math.hypot(c.x-a.x,c.y-a.y); if (L < 0.01) continue;
+      if (Math.max(a.x,c.x) < -40 || Math.min(a.x,c.x) > W+40) continue;
+      const nx = -(c.y-a.y)/L, ny = (c.x-a.x)/L;
+      for (let dd = Math.ceil(a.d/STEP)*STEP; dd < c.d; dd += STEP){ const u = (dd-a.d)/Math.max(c.d-a.d,0.001), k = Math.round(dd/STEP);
+        fn(a.x+(c.x-a.x)*u, a.y+(c.y-a.y)*u, nx, ny, k, (c.x-a.x)/L, (c.y-a.y)/L); } } };
+  walk((x,y0,nx,ny,k) => { for (const side of [1,-1]){ const j = rnd(k*2+(side>0?1:0)), r = (3.2 + j*2.6)*s, off = thick + (0.5 + j*2)*s;
+      cx.fillStyle = side*ny > 0 ? '#ebe6da' : '#fffdf7'; cx.beginPath(); cx.arc(x+nx*off*side, y0+ny*off*side, r, 0, 7); cx.fill(); } });
+  // 3) the neck body
+  path(); cx.strokeStyle='#fffdf7'; cx.lineWidth=thick*2; cx.stroke();
+  // 4) a gentle belly shade and fine hairs on the edge
+  walk((x,y0,nx,ny,k,tx,ty) => { if (k%2) return; const side = ny > 0 ? 1 : -1, j = rnd(k*3.1);
+      cx.strokeStyle = 'rgba(190,180,160,.45)'; cx.lineWidth = 1.1*s; cx.beginPath();
+      const bx = x+nx*side*(thick-2*s), by = y0+ny*side*(thick-2*s);
+      cx.moveTo(bx, by); cx.lineTo(bx+nx*side*(4+j*4)*s+tx*(j-0.5)*4*s, by+ny*side*(4+j*4)*s+ty*(j-0.5)*4*s); cx.stroke();
+      const j2 = rnd(k*5.7), side2 = -side; cx.strokeStyle = 'rgba(210,202,186,.35)'; cx.beginPath();
+      const cx2 = x+nx*side2*(thick-1*s), cy2 = y0+ny*side2*(thick-1*s);
+      cx.moveTo(cx2, cy2); cx.lineTo(cx2+nx*side2*(3+j2*3)*s, cy2+ny*side2*(3+j2*3)*s); cx.stroke(); });
   // sheep head
   const ang = state==='dead' ? Math.min(1.4, 0.4 + (t-deadT)*3) : Math.max(-0.5, Math.min(0.9, vy/900));
   cx.save(); cx.translate(hx, hy); cx.rotate(ang); cx.scale(s*0.75, s*0.75);
