@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.2.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.2.1';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -633,6 +633,19 @@ const DROP_MIN = 2, DROP_MAX = 5, DROP_NEED = 5, DASH_TIME = 5, DASH_SPEED = 1.7
 const nextDropGap = () => DROP_MIN + Math.floor(Math.random()*(DROP_MAX - DROP_MIN + 1));   // drops come every 2–5 obstacles, not on a fixed beat
 let dropIn = nextDropGap();
 const smooth = v => v*v*(3 - 2*v);
+// after a dash the next gaps open up and ease back: 1st very wide, 2nd a bit wider, then normal
+const AFTER_DASH_GAPS = [2.0, 1.45];
+let gapQueue = [];
+function widenGap(o, k){
+  const room = groundY() - 120*S(), centre = o.gapTop + o.gap/2, gap = Math.min(o.gap*k, room);
+  o.gap = gap; o.gapTop = Math.max(60*S(), Math.min(groundY() - 60*S() - gap, centre - gap/2));
+}
+function openUpAfterDash(){
+  const hx = camX + headX();
+  const ahead = obs.filter(o => !o.passed && o.cx - Math.max(obW(o.kb), obW(o.kt))/2 > hx + headR()).sort((a,b) => a.cx - b.cx);
+  gapQueue = AFTER_DASH_GAPS.slice();
+  for (const o of ahead){ if (!gapQueue.length) break; widenGap(o, gapQueue.shift()); }
+}
 const pops = [];
 let drops = 0, dash = 0, grace = 0, dashFx = 0, partyTimer = 0;
 const updateDrops = () => { const el = document.getElementById('drops'); if (!el) return;
@@ -660,7 +673,7 @@ try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
 function reset(){
   state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = headX() + 420*S(); recent.length = 0;   // first obstacle a fixed distance ahead of the head, whatever the screen width
-  drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; dropIn = nextDropGap(); updateDrops();
+  drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; dropIn = nextDropGap(); gapQueue = []; updateDrops();
   trail = [{ ...neckBase(), d: 0 }];
   document.getElementById('score').textContent = 0; document.getElementById('neck').textContent = '';
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
@@ -697,7 +710,9 @@ function addObstacle(atX){
   const kb = pickKind(bottomH), kt = pickKind(topH);
   let drop = false;
   if (dash <= 0 && --dropIn <= 0){ drop = true; dropIn = nextDropGap(); }
-  obs.push({ cx: atX, gapTop, gap, kb, kt, passed:false, drop, got: false });
+  const o = { cx: atX, gapTop, gap, kb, kt, passed:false, drop, got: false };
+  if (gapQueue.length) widenGap(o, gapQueue.shift());
+  obs.push(o);
 }
 const obW = k => OB_W()*LANDMARKS[k].wm;
 function boxesOf(o){
@@ -793,7 +808,7 @@ const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 function update(dt){
   if (dash > 0){ dash -= dt; partyTimer -= dt;
     if (partyTimer <= 0){ partyTimer = 0.3; ribbonPuff(); }
-    if (dash <= 0){ dash = 0; grace = DASH_EASE_OUT; document.getElementById('partyGlow').classList.remove('on'); } }
+    if (dash <= 0){ dash = 0; grace = DASH_EASE_OUT; openUpAfterDash(); document.getElementById('partyGlow').classList.remove('on'); } }
   else if (grace > 0) grace -= dt;
   if (dash > 0) dashFx += (1 - dashFx) * Math.min(1, dt*6);   // shrink quickly…
   else dashFx = Math.max(0, dashFx - dt/DASH_EASE_OUT);       // …and grow back slowly
@@ -802,8 +817,9 @@ function update(dt){
   if (state !== 'dead') while (nextOb < camX + W + 160){ addObstacle(nextOb); nextOb += SPACING(); }
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
   if (state === 'play'){
-    const gdt = dt*speedK()*(dash > 0 ? DASH_SPEED : 1); gt += gdt;
-    camX += SPEED()*gdt; vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
+    const gdt = dt*speedK(); gt += gdt;
+    // the dash only speeds up forward motion (easing in and out); jumps and falls keep their normal feel
+    camX += SPEED()*gdt*(1 + (DASH_SPEED - 1)*smooth(dashFx)); vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
     if (holding && gt - holdStart < HOLD_MAX) vy = Math.max(VMAX_UP(), vy - LIFT()*gdt);
     y += vy*gdt;
     const hx = camX + headX(), r = headR();
