@@ -5,7 +5,7 @@
  *   工作表「leaderboard」：裝置ID | 名字 | 分數 | 時間
  * 部署成「網頁應用程式」後，把網址貼進 index.html 的 SHEET_API。
  */
-const MAX_NAME = 12, MAX_SCORE = 9999;
+const MAX_NAME = 12, MAX_SCORE = 9999, MAX_ROWS = 5000;
 
 function sheet_(name, header) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -46,9 +46,12 @@ function handle_(p) {
     if (action === 'start')  { bump_(1); return readStats_(); }
     if (action === 'player') { bump_(2); return readStats_(); }
     if (action === 'submit') {
-      const pid = cleanPid_(p.pid), name = String(p.name || '').trim().slice(0, MAX_NAME), score = Math.floor(Number(p.score));
+      // strip characters a spreadsheet would treat as a formula (=, +, -, @) and control characters
+      const name = String(p.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().replace(/^[=+\-@\s]+/, '').slice(0, MAX_NAME);
+      const pid = cleanPid_(p.pid), score = Math.floor(Number(p.score));
       if (!pid || !name || !(score >= 1 && score <= MAX_SCORE)) return { error: 'bad input' };
-      const mine = rows_().find(r => r.pid === pid);
+      const all = rows_(), mine = all.find(r => r.pid === pid);
+      if (!mine && all.length >= MAX_ROWS) return { error: 'leaderboard full' };   // stop endless spam rows
       if (mine && mine.score > score) return { saved: false, best: mine.score, rank: rankOf_(mine.score) };
       const values = [[pid, name, score, new Date()]];
       if (mine) boardSheet_().getRange(mine.row, 1, 1, 4).setValues(values); else boardSheet_().appendRow(values[0]);
