@@ -64,7 +64,7 @@
 <div id="score">0</div>
 <div id="neck"></div><div id="drops"></div>
 <div id="partyGlow"></div><div id="partyBanner">🌊 洋流衝刺！</div>
-<div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關</div>
+<div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關・<span id="ver"></span></div>
 <div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">飛 越 臺 北</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
 <div id="panel"><h1>🐑 伸脖羊：「晚安！」</h1><div class="row"><div>分數<b id="ps">0</b></div><div>最佳<b id="pb">0</b></div></div><div id="pn"></div><div class="stats2" id="statsPanel"></div>
@@ -86,6 +86,8 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
+const GAME_VERSION = 'v1.2.0';   // bump on every release: major.minor.patch
+document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
 
@@ -368,6 +370,7 @@ function G(x, top, w, gy, n, flip){
     cx.moveTo(a,y); cx.lineTo(a,y-h+(b-a)/2); cx.arc((a+b)/2, y-h+(b-a)/2, (b-a)/2, Math.PI, 0); cx.lineTo(b,y); cx.fill(); };
   g.tree = (u,y,r,col='#3f9a4a',trunk='#6b4423') => { g.R(u-0.02,u+0.02,y,y-r*1.2,trunk); g.C(u,y-r*1.4,r,col); g.C(u-0.06,y-r*1.1,r*0.75,col); g.C(u+0.06,y-r*1.1,r*0.75,col); };
   g.lant = (u,y) => { g.E(u,y,0.035,6*s,'#e53935'); if (n>0.3){ cx.fillStyle='rgba(255,120,80,'+n*0.35+')'; cx.beginPath(); cx.arc(g.X(u),y,10*s,0,7); cx.fill(); } };
+  g.sign = (text,u0,u1,y,col) => sign(text, g.X(u0), y, (u1-u0)*w, g.c(col), flip);
   g.ground = (col) => g.R(0,1,gy-g.m(10,0.08),gy,col);
   return g;
 }
@@ -567,6 +570,50 @@ const MORE = [
     for (const u of [0.12,0.88]){ g.R(u-0.015,u+0.015,g.gy-g.H*0.3,T(14),'#c9ccd0'); g.R(u-0.09,u+0.09,T(14),T(0),'#e8e8e8'); if (g.n>0.2){ cx.fillStyle='rgba(255,255,220,'+g.n*0.6+')'; cx.beginPath(); cx.arc(g.X(u),T(7),20*s,0,7); cx.fill(); } } }, 0.95),
   MK('臺北田徑場',1.6,170,0,g=>{ const {T,s}=g; g.R(0.02,0.98,g.gy,T(10),'#d9dde2'); for (let k=0;k<9;k++) g.arch(0.08+k*0.105,g.gy,0.07,(g.gy-T(10))*0.7,'#8a96a3');
     g.R(0,1,T(10),T(0),'#c62828'); g.R(0,1,T(4),T(6),'#ffffff'); }),
+  // ---- stations & MRT (v1.2) ----
+  MK('捷運西門站',1.2,170,0,g=>{ const {T,m,s}=g; const eave=T(0)+m(26,0.3);
+    g.R(0.06,0.94,g.gy,eave,'#d7dde2'); g.P([[0,eave],[0.5,T(0)],[1,eave]],'#9fd3e8'); g.L([[0,eave],[0.5,T(0)],[1,eave]],'#eef6fa',2);
+    const door=g.gy-Math.min((g.gy-eave)*0.7,64*s); g.R(0.26,0.74,g.gy,door,'#2c3e50'); for (let k=0;k<4;k++) g.L([[0.3+k*0.04,g.gy],[0.5+k*0.04,door+6*s]],'#7f8c97',1.5);
+    g.sign('捷運西門站',0.12,0.88,eave+3*s,'#1f5fa8'); g.C(0.88,eave+m(46,0.45),7*s,'#1f5fa8'); }),
+  MK('台北轉運站',1.0,9999,24,g=>{ const {T,s}=g; const pod=g.gy-Math.min(g.H*0.2,60*s);
+    g.R(0.12,0.88,pod,T(24),'#7fa7c4'); g.win(0.15,0.85,T(30),pod,'#5d86a3',8,10); g.E(0.5,T(24),0.38,Math.min(24*s,g.H*0.1),'#a8c8dc',true);
+    g.R(0.48,0.52,T(24),T(0),'#d5dde3'); g.R(0,1,g.gy,pod,'#c9d3da'); g.R(0.02,0.98,pod+8*s,g.gy-4,'#8aa2b5'); g.sign('台北轉運站',0.2,0.8,pod-22*s,'#3a6b8f'); }, 0.8),
+  MK('捷運圓山站',1.6,240,0,g=>{ const {T,s}=g; const deck=T(44);
+    g.cols(0.15,0.85,deck,g.gy,3,'#b9bec4',0.08); g.R(0,1,deck,deck-8*s,'#d1d5d9');
+    g.R(0.06,0.94,deck-8*s,T(14),'#f4f4f4'); g.R(0.06,0.94,T(26),T(30),'#d32f2f'); g.win(0.09,0.91,T(16),T(25),'#3b4a5a',14,8);
+    g.E(0.5,T(12),0.5,Math.min(12*s,g.H*0.06),'#e0e4e8',true); g.sign('圓山站',0.35,0.65,deck+4*s,'#c62828'); }),
+  MK('松山車站',1.5,200,0,g=>{ const {T,m,s}=g; const r=m(22,0.25);
+    g.R(0.04,0.96,g.gy,T(0)+r,'#e9e4da'); g.win(0.08,0.92,T(0)+r+6,g.gy-24*s,'#6f93ad',12,14); g.R(0.3,0.7,g.gy,g.gy-24*s,'#4a5a68');
+    cx.fillStyle=g.c('#b0b8bf'); cx.beginPath(); cx.moveTo(g.X(-0.02),T(0)+r); for (let k=0;k<=8;k++) cx.lineTo(g.X(-0.02+k*0.13), T(0)+r*(k%2?0.2:0.9)); cx.lineTo(g.X(1.02),T(0)+r); cx.fill();
+    g.sign('松山車站',0.3,0.7,T(0)+r+4*s,'#2a4d8f'); }),
+  MK('南港車站',1.5,230,0,g=>{ const {T,m,s}=g; const r=m(30,0.3);
+    g.R(0.03,0.97,g.gy,T(0)+r,'#9fb8c9'); g.win(0.06,0.94,T(0)+r+6,g.gy-6,'#6f8fa3',10,12);
+    g.P([[-0.03,T(0)+r],[0.25,T(0)],[1.03,T(0)+r*0.7],[1.03,T(0)+r]],'#f2f4f5'); g.L([[0.25,T(0)],[0.25,g.gy]],'#e1e6ea',3);
+    g.sign('南港車站',0.35,0.75,T(0)+r+6*s,'#2a4d8f'); }),
+  // ---- schools (v1.2) ----
+  MK('建國中學紅樓',1.4,230,0,g=>{ const {T,m,s}=g; const tw=T(0)+m(46,0.4), body=tw+m(14,0.12);
+    g.R(0.04,0.96,g.gy,body,'#b5523b'); g.bands(0.04,0.96,body,g.gy,'#efe3cf',Math.max(16,m(28,0.25)));
+    for (let k=0;k<6;k++) g.arch(0.12+k*0.152,g.gy-4,0.07,Math.min(26*s,(g.gy-body)*0.35),'#5b2a1e');
+    g.R(0.38,0.62,body,tw,'#a8452f'); g.R(0.36,0.64,tw,tw+4*s,'#efe3cf');
+    g.P([[0.36,tw],[0.42,T(10)],[0.58,T(10)],[0.64,tw]],'#4a4f57'); g.R(0.47,0.53,T(10),T(0),'#4a4f57'); g.C(0.5,T(0),3*s,'#d9b44a');
+    g.tree(0.06,g.gy,Math.min(14*s,g.H*0.08)); }),
+  MK('北一女中',1.4,230,0,g=>{ const {T,m,s}=g; const roof=T(0)+m(14,0.15);
+    g.R(0.04,0.96,g.gy,roof,'#e6dcc8'); g.R(0.02,0.98,roof,roof-6*s,'#8a8478');
+    const fl=Math.max(1,Math.min(4,Math.floor((g.gy-roof)/(34*s)))), fh=(g.gy-roof)/fl;
+    for (let f=0;f<fl;f++) for (let k=0;k<7;k++) g.arch(0.1+k*0.133,roof+fh*(f+1)-4,0.08,fh*0.7,'#8c7d64');
+    g.R(0.46,0.47,roof,T(0)-2,'#888'); g.R(0.47,0.6,T(0)-2,T(0)+8*s,'#2e8b57');
+    for (const u of [0.2,0.32,0.72]){ g.C(u,g.gy-22*s,4*s,'#2b2b2b'); g.R(u-0.025,u+0.025,g.gy-18*s,g.gy-8*s,'#2e8b57'); g.R(u-0.02,u+0.02,g.gy-8*s,g.gy,'#1f3f6b'); } }),
+  MK('臺灣師範大學',1.3,240,0,g=>{ const {T,m,s}=g; const tw=T(0)+m(40,0.35), body=tw+m(16,0.15);
+    g.R(0.04,0.96,g.gy,body,'#a9503c'); g.win(0.08,0.92,body+8,g.gy-6,'#f1e6d0',12,18);
+    g.R(0.4,0.6,body,T(12),'#b85d47'); g.C(0.5,(tw+body)/2,Math.min(0.07*g.w,8*s),'#f4efe4'); g.L([[0.5,(tw+body)/2],[0.5,(tw+body)/2-5*s]],'#333',1.5);
+    g.P([[0.38,T(12)],[0.5,T(0)],[0.62,T(12)]],'#5a5f66'); g.tree(0.92,g.gy,Math.min(14*s,g.H*0.08)); }),
+  MK('中山女高',1.3,220,0,g=>{ const {T,m,s}=g; const roof=T(0)+m(10,0.1);
+    g.R(0.04,0.96,g.gy,roof,'#e9a9ae'); g.R(0.02,0.98,roof,T(0),'#c97f86');
+    g.win(0.08,0.92,roof+10,g.gy-30*s,'#fbe9ea',12,20); g.arch(0.5,g.gy,0.22,Math.min(40*s,(g.gy-roof)*0.5),'#8a4a52'); g.tree(0.1,g.gy,Math.min(14*s,g.H*0.08)); }),
+  MK('政治大學',1.4,220,0,g=>{ const {T,m,s}=g;
+    g.P([[0,g.gy],[0.25,T(0)],[0.55,T(0)+m(20,0.2)],[0.85,T(0)+m(6,0.1)],[1,g.gy]],'#5f8f5a');
+    const gt=g.gy-Math.min(g.H*0.45,70*s); g.R(0.2,0.3,g.gy,gt,'#e8e4dc'); g.R(0.7,0.8,g.gy,gt,'#e8e4dc'); g.R(0.16,0.84,gt,gt-12*s,'#cfc8ba');
+    g.sign('政治大學',0.32,0.68,gt-10*s,'#3e5f8a'); g.tree(0.08,g.gy,Math.min(12*s,g.H*0.07)); g.tree(0.92,g.gy,Math.min(12*s,g.H*0.07)); }),
 ];
 LANDMARKS.push(...MORE);
 
