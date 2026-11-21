@@ -86,7 +86,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.8.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.9.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -863,10 +863,23 @@ function reset(){
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
 }
 reset();
+// input log for the anti-cheat check: how many taps, how many were synthetic, and how regular they were
+const runInput = { taps: 0, fake: 0, gaps: [], last: 0 };
+function noteTap(e){
+  const now = performance.now();
+  runInput.taps++; if (!e || e.isTrusted === false) runInput.fake++;
+  if (runInput.last) runInput.gaps.push(now - runInput.last); runInput.last = now;
+}
+function runStats(){
+  const g = runInput.gaps, m = g.length ? g.reduce((a,b)=>a+b,0)/g.length : 0;
+  const sd = g.length ? Math.sqrt(g.reduce((a,b)=>a+(b-m)**2,0)/g.length) : 0;
+  return { taps: runInput.taps, fake: runInput.fake, cv: m ? +(sd/m).toFixed(3) : 0, gapMs: Math.round(m) };
+}
 function tap(e){
   e && e.preventDefault && e.preventDefault();
+  if (state === 'play' || state === 'ready') noteTap(e);
   if (state === 'dead'){ if (t - deadT > 0.7) reset(); return; }
-  if (state === 'ready'){ state = 'play'; setTimeout(updateDrops, 0); document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
+  if (state === 'ready'){ runInput.taps = 1; runInput.fake = (!e || e.isTrusted === false) ? 1 : 0; runInput.gaps = []; runInput.last = performance.now(); state = 'play'; setTimeout(updateDrops, 0); document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
   vy = FLAP(); flapT = t; holding = true; holdStart = gt;
 }
 cv.addEventListener('pointerdown', tap);
@@ -1220,7 +1233,7 @@ window.SHEET_API = "https://script.google.com/macros/s/AKfycbxfcDZV2VQlhBoSj4j61
       $('lbMsg').textContent = '破紀錄！自動更新排行榜中…';
       window.LB.submit(name, sc).then(r => { remember(sc, r);
         $('lbMsg').textContent = r.saved ? '🎉 已自動更新排行榜（' + name + '）：第 ' + r.rank + ' 名' : '排行榜保留你之前的 ' + r.best + ' 分（第 ' + r.rank + ' 名）';
-      }).catch(() => { $('lbMsg').textContent = '自動更新失敗，可以手動上傳'; $('lbForm').classList.add('on'); });
+      }).catch(e => { if (e && e.code === 'rejected'){ $('lbMsg').textContent = '這局的分數沒有通過檢查，沒有上榜'; return; } $('lbMsg').textContent = '自動更新失敗，可以手動上傳'; $('lbForm').classList.add('on'); });
     }
   };
   $('sendBtn').onclick = async () => {
@@ -1232,7 +1245,7 @@ window.SHEET_API = "https://script.google.com/macros/s/AKfycbxfcDZV2VQlhBoSj4j61
       const r = await window.LB.submit(name, lastScore); remember(lastScore, r);
       $('lbMsg').textContent = r.saved ? '🎉 已上榜！之後破紀錄會自動更新，目前第 ' + r.rank + ' 名' : '你之前的紀錄 ' + r.best + ' 分比較高，排行榜保留最高分（第 ' + r.rank + ' 名）';
       $('lbForm').classList.remove('on');
-    }catch(e){ $('lbMsg').textContent = '上傳失敗，請稍後再試'; }
+    }catch(e){ $('lbMsg').textContent = e && e.code === 'rejected' ? '這局的分數沒有通過檢查，沒有上榜' : e && e.code === 'ticket' ? '這局的上傳時間已過，再玩一局吧' : '上傳失敗，請稍後再試'; }
     $('sendBtn').disabled = false;
   };
   const openBoard = async () => {
@@ -1272,10 +1285,11 @@ window.showStats = (plays, players) => {
     try{ localStorage.setItem('sheepPid', pid); }catch(_){}
     call({ action:'player' }, true).then(show).catch(()=>{});
   } else call({ action:'stats' }).then(show).catch(()=>{});
-  window.onGameStart = () => call({ action:'start' }, true).then(show).catch(()=>{});
+  let ticket = null;   // one-use ticket for this run, handed out by the server when the run starts
+  window.onGameStart = () => { ticket = null; call({ action:'start', pid }, true).then(r => { if (r && r.ticket) ticket = r.ticket; show(r); }).catch(()=>{}); };
   window.LB = {
     pid,
-    async submit(name, score){ const r = await call({ action:'submit', pid, name, score }, true); if (r.error) throw new Error(r.error); return r; },
+    async submit(name, score){ const r = await call({ action:'submit', pid, name, score, ticket, run: runStats() }, true); if (r.error) throw Object.assign(new Error(r.error), { code: r.error }); return r; },
     async top(n){ const r = await call({ action:'top', pid, n }); return (r.rows || []).map(x => ({ id: x.me ? pid : '', name: String(x.name || '？'), score: +x.score || 0 })); },
   };
   window.enableBoard();
