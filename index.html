@@ -547,13 +547,13 @@ let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs fast
 // the gap starts wide (280) and narrows by 8 per obstacle down to 120
 const curGap = () => Math.max(120, 280 - 8*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
-let spawned = 0;
+let spawned = 0, lastCentre = null;
 let state = 'ready', y = 0, vy = 0, score = 0, best = 0, deadT = 0, trail = [], obs = [], nextOb = 0, flapT = 0, shake = 0;
 const recent = [];
 try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
 function reset(){
-  state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; nextOb = W*1.15; recent.length = 0;
+  state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = W*1.15; recent.length = 0;
   trail = [{ ...neckBase(), d: 0 }];
   document.getElementById('score').textContent = 0; document.getElementById('neck').textContent = '';
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
@@ -581,7 +581,11 @@ function pickKind(h){   // a landmark that suits this height and hasn't shown up
 function addObstacle(){
   const minTop = 60*S(), minBottom = 60*S();
   const gap = curGap(); spawned++;
-  const gapTop = minTop + Math.random()*(groundY() - minBottom - minTop - gap);
+  // keep the next gap within reach of the last one: at most 100 higher or 150 lower (centre to centre)
+  const lo = minTop, hi = groundY() - minBottom - gap;
+  let centre = lo + gap/2 + Math.random()*(hi - lo);
+  if (lastCentre !== null) centre = Math.max(lastCentre - 100*S(), Math.min(lastCentre + 150*S(), centre));
+  const gapTop = Math.max(lo, Math.min(hi, centre - gap/2)); lastCentre = gapTop + gap/2;
   const bottomH = groundY() - gapTop - gap, topH = gapTop + 10;
   const kb = pickKind(bottomH), kt = pickKind(topH);
   obs.push({ cx: camX + W + 90, gapTop, gap, kb, kt, passed:false });
