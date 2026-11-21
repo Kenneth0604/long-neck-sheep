@@ -538,10 +538,12 @@ const MORE = [
 LANDMARKS.push(...MORE);
 
 // ---------- game ----------
-const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -190*S(), SPEED = () => 160*S()*(1 + 0.35*Math.log(1 + score/3));   // floatier, gentler; speeds up on a log curve as the score grows
+const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -190*S(), SPEED = () => 160*S();   // floatier, gentler
+// the whole game runs faster on a log curve as the score grows: forward speed, jumps and falls all scale together
+const speedK = () => 1 + 0.2*Math.log(1 + score/6);
 // hold to jump higher: while the finger stays down (up to HOLD_MAX s) the head keeps rising
 const HOLD_MAX = 0.3, LIFT = () => 1500*S(), VMAX_UP = () => -270*S();
-let holding = false, holdStart = 0;
+let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
 // the gap starts wide (280) and narrows by 8 per obstacle down to 120
 const curGap = () => Math.max(120, 280 - 8*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
@@ -561,7 +563,7 @@ function tap(e){
   e && e.preventDefault && e.preventDefault();
   if (state === 'dead'){ if (t - deadT > 0.7) reset(); return; }
   if (state === 'ready'){ state = 'play'; document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
-  vy = FLAP(); flapT = t; holding = true; holdStart = t;
+  vy = FLAP(); flapT = t; holding = true; holdStart = gt;
 }
 cv.addEventListener('pointerdown', tap);
 const letGo = () => { holding = false; };
@@ -609,9 +611,10 @@ const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 function update(dt){
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
   if (state === 'play'){
-    camX += SPEED()*dt; vy += (vy < 0 ? GRAV() : FALL())*dt;   // rise gently, fall faster
-    if (holding && t - holdStart < HOLD_MAX) vy = Math.max(VMAX_UP(), vy - LIFT()*dt);
-    y += vy*dt;
+    const gdt = dt*speedK(); gt += gdt;
+    camX += SPEED()*gdt; vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
+    if (holding && gt - holdStart < HOLD_MAX) vy = Math.max(VMAX_UP(), vy - LIFT()*gdt);
+    y += vy*gdt;
     if (camX + W > nextOb){ addObstacle(); nextOb += SPACING(); }
     const hx = camX + headX(), r = headR();
     for (const o of obs){
@@ -683,7 +686,7 @@ function drawNeckAndHead(){
   cx.save(); cx.translate(hx, hy); cx.rotate(ang); cx.scale(s*0.75, s*0.75);
   puff(-6,-30,22); puff(10,-34,18);
   cx.fillStyle='#2b2b2b'; cx.beginPath(); cx.ellipse(18,0,40,27,0,0,7); cx.fill();
-  const flap = t - flapT < 0.15 || (holding && t - holdStart < HOLD_MAX);
+  const flap = t - flapT < 0.15 || (holding && gt - holdStart < HOLD_MAX);
   cx.save(); cx.translate(-4,-14); cx.rotate(flap ? -1.6 : -0.5 + Math.sin(t*6)*0.15);
   cx.fillStyle='#2b2b2b'; cx.beginPath(); cx.ellipse(-22,0,24,10,0,0,7); cx.fill();
   cx.fillStyle='#ff8fa3'; cx.beginPath(); cx.ellipse(-22,0,14,4,0,0,7); cx.fill(); cx.restore();
