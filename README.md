@@ -11,29 +11,31 @@
 
 ---
 
-## 一、建立 Firebase 資料庫（存統計數字，免費）
+## 一、把資料存到你的 Google 雲端硬碟（免費）
 
-1. 到 https://console.firebase.google.com ，按「建立專案」，名字隨意（例如 `sheep-game`）。Google Analytics 可以關掉。
-2. 左側選單 **建構 → Realtime Database → 建立資料庫**。
-   - 位置選 **新加坡（asia-southeast1）**，離臺灣最近。
-   - 安全性規則選 **以鎖定模式啟動**。
-3. 進入 Realtime Database 的 **規則** 分頁，把裡面的內容全部換成 `database.rules.json` 的內容，再按 **發布**。
-   - 這組規則讓所有人都能讀統計數字和排行榜；統計每次只能加 1、不能歸零；排行榜每台裝置一筆，名字限 1–12 字，分數只能往上更新。
-   - 之後如果改過規則，一樣要把新的 `database.rules.json` 整份貼上再發布一次。
-   - 想刪掉不雅名字：在 Realtime Database 頁面點開 `leaderboard`，找到那一筆刪除即可。
-4. 回到專案首頁，按齒輪 **專案設定 → 一般**，往下找「你的應用程式」，按網頁圖示 **`</>`**，隨便取個名字註冊（不用勾 Hosting）。
-5. 畫面會出現一段 `firebaseConfig`。把其中這五個值，貼進 `index.html` 最下面的 `window.FIREBASE_CONFIG` 對應欄位：
-   - `apiKey`
-   - `authDomain`
-   - `databaseURL`
-   - `projectId`
-   - `appId`
+統計和排行榜存在你雲端硬碟裡的一份 Google 試算表，透過 Google Apps Script 接收遊戲傳來的資料。
 
-   如果沒看到 `databaseURL`，到 Realtime Database 頁面最上方複製網址（`https://…firebasedatabase.app`）。
+1. 打開 https://drive.google.com ，**新增 → Google 試算表**，取名例如「伸脖羊資料」。
+2. 在試算表上方選單 **擴充功能 → Apps Script**。
+3. 把編輯器裡原本的程式全部刪掉，貼上這個 repo 的 `Code.gs` 內容，按 💾 儲存。
+4. 右上角 **部署 → 新增部署作業**：
+   - 類型（齒輪）選 **網頁應用程式**
+   - 執行身分：**我**
+   - 誰可以存取：**所有人**
+   - 按 **部署**
+5. 第一次會要求授權：選你的帳號。如果看到「Google 尚未驗證這個應用程式」，按 **進階 → 前往（不安全）→ 允許**。這是你自己寫的腳本，只會讀寫這份試算表。
+6. 複製畫面上的 **網頁應用程式網址**（`https://script.google.com/macros/s/…/exec`），貼到 `index.html` 最下面的 `window.SHEET_API = "…"`。
 
-> 網頁用的 `apiKey` 本來就會出現在前端，不是密碼，可以放心公開；真正保護資料的是第 3 步的規則。
+第一次有人玩之後，試算表會自動出現兩個工作表：
+
+- **stats**：A2 是遊玩次數、B2 是遊玩人數。
+- **leaderboard**：每台裝置一列（裝置ID、名字、分數、時間）。
+
+想刪掉不雅名字或作弊紀錄，直接刪那一列就好。
+
+> 之後如果修改了 `Code.gs`，要到 **部署 → 管理部署作業 → ✏️ 編輯 → 版本選「新版本」→ 部署**，網址才會維持不變。
 >
-> 沒有填設定的話，遊戲照樣能玩，只是不會顯示統計。
+> 沒有填網址的話，遊戲照樣能玩，只是不會顯示統計和排行榜。
 
 ## 二、放上 GitHub Pages（免費網址）
 
@@ -49,6 +51,6 @@
 ## 三、查看統計
 
 - 直接打開遊戲網址，開始畫面就會顯示。
-- 也可以在 Firebase 的 Realtime Database 頁面看到 `stats/plays`（次數）、`stats/players`（人數）和 `leaderboard`（排行榜）。
+- 也可以直接打開雲端硬碟裡的那份試算表，看 `stats` 和 `leaderboard` 工作表。
 
-> 分數是由玩家的瀏覽器上傳的，懂程式的人有辦法偽造高分。這是純前端小遊戲的限制，看到明顯作弊的紀錄，直接在 Firebase 刪掉就好。
+> 分數是由玩家的瀏覽器上傳的，懂程式的人有辦法偽造高分。這是純前端小遊戲的限制，看到明顯作弊的紀錄，直接在試算表刪掉那一列就好。

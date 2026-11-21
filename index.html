@@ -739,14 +739,8 @@ function frame(now){
 requestAnimationFrame(frame);
 </script>
 <script>
-// ===== 統計設定：把 Firebase 專案的設定貼在這裡（README 有步驟）=====
-window.FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  databaseURL: "",      // 例：https://xxxx-default-rtdb.asia-southeast1.firebasedatabase.app
-  projectId: "",
-  appId: ""
-};
+// ===== 統計設定：把 Google Apps Script 網頁應用程式的網址貼在這裡（README 有步驟）=====
+window.SHEET_API = "";   // 例：https://script.google.com/macros/s/XXXXXXXX/exec
 // ===== leaderboard UI =====
 (function(){
   const $ = id => document.getElementById(id);
@@ -793,43 +787,29 @@ window.showStats = (plays, players) => {
   document.getElementById('statsPanel').textContent = txt;
 };
 </script>
-<script type="module">
-// Counts every game started (plays) and every new device (players) in Firebase Realtime Database.
-// If the config above is empty, the game simply runs without statistics.
-const cfg = window.FIREBASE_CONFIG;
-if (cfg && cfg.databaseURL){
-  try{
-    const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getDatabase, ref, onValue, set, get, increment, query, orderByChild, limitToLast, startAt, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
-    const db = getDatabase(initializeApp(cfg));
-    onValue(ref(db, 'stats'), snap => { const v = snap.val() || {}; window.showStats(v.plays || 0, v.players || 0); });
-    // one id per device: the first visit counts as a new player
-    let pid = null; try{ pid = localStorage.getItem('sheepPid'); }catch(_){}
-    if (!pid){
-      pid = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
-      try{ localStorage.setItem('sheepPid', pid); }catch(_){}
-      set(ref(db, 'stats/players'), increment(1)).catch(()=>{});
-    }
-    window.onGameStart = () => set(ref(db, 'stats/plays'), increment(1)).catch(()=>{});
-    // ---- global leaderboard: one entry per device, keeps its best score ----
-    const rankOf = async sc => (await get(query(ref(db, 'leaderboard'), orderByChild('score'), startAt(sc + 1)))).size + 1;
-    window.LB = {
-      pid,
-      async submit(name, score){
-        const mine = ref(db, 'leaderboard/' + pid), old = (await get(mine)).val();
-        if (old && old.score > score){ return { saved:false, best: old.score, rank: await rankOf(old.score) }; }
-        await set(mine, { name, score, ts: serverTimestamp() });
-        return { saved:true, rank: await rankOf(score) };
-      },
-      async top(n){
-        const snap = await get(query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(n))), rows = [];
-        snap.forEach(c => { const v = c.val() || {}; rows.push({ id: c.key, name: String(v.name || '？'), score: +v.score || 0, ts: +v.ts || 0 }); });
-        return rows.sort((a,b) => b.score - a.score || a.ts - b.ts);
-      },
-    };
-    window.enableBoard();
-  }catch(e){ console.warn('stats unavailable', e); }
-}
+<script>
+// Stats + global leaderboard, stored in a Google Sheet in the owner's Drive via Apps Script.
+// If SHEET_API is empty the game simply runs without them.
+(function(){
+  const API = window.SHEET_API; if (!API) return;
+  const call = (params, write) => write
+    ? fetch(API, { method:'POST', body: JSON.stringify(params), headers:{ 'Content-Type':'text/plain;charset=utf-8' } }).then(r => r.json())
+    : fetch(API + '?' + new URLSearchParams(params)).then(r => r.json());
+  const show = v => { if (v && typeof v.plays === 'number') window.showStats(v.plays, v.players); };
+  let pid = null; try{ pid = localStorage.getItem('sheepPid'); }catch(_){}
+  if (!pid){                                   // first visit on this device/browser = a new player
+    pid = (crypto.randomUUID ? crypto.randomUUID() : 'p' + String(Math.random()).slice(2));
+    try{ localStorage.setItem('sheepPid', pid); }catch(_){}
+    call({ action:'player' }, true).then(show).catch(()=>{});
+  } else call({ action:'stats' }).then(show).catch(()=>{});
+  window.onGameStart = () => call({ action:'start' }, true).then(show).catch(()=>{});
+  window.LB = {
+    pid,
+    async submit(name, score){ const r = await call({ action:'submit', pid, name, score }, true); if (r.error) throw new Error(r.error); return r; },
+    async top(n){ const r = await call({ action:'top', pid, n }); return (r.rows || []).map(x => ({ id: x.me ? pid : '', name: String(x.name || '？'), score: +x.score || 0 })); },
+  };
+  window.enableBoard();
+})();
 </script>
 </body>
 </html>
