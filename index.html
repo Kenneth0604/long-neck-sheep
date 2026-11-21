@@ -582,13 +582,17 @@ const curGap = () => Math.max(120, 280 - 4*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
 let spawned = 0, lastCentre = null;
 // ---- 小水滴 & 洋流衝刺 (party time) ----
-const DROP_EVERY = 3, DROP_NEED = 5, DASH_TIME = 5, DASH_SPEED = 1.7;
+const DROP_MIN = 2, DROP_MAX = 5, DROP_NEED = 5, DASH_TIME = 5, DASH_SPEED = 1.7, DASH_EASE_OUT = 1.6;
+const nextDropGap = () => DROP_MIN + Math.floor(Math.random()*(DROP_MAX - DROP_MIN + 1));   // drops come every 2–5 obstacles, not on a fixed beat
+let dropIn = nextDropGap();
+const smooth = v => v*v*(3 - 2*v);
 const pops = [];
 let drops = 0, dash = 0, grace = 0, dashFx = 0, partyTimer = 0;
 const updateDrops = () => { const el = document.getElementById('drops'); if (!el) return;
   el.textContent = state === 'ready' ? '' : '💧 ' + drops + ' / ' + DROP_NEED; };
 function startDash(){
   dash = DASH_TIME; partyTimer = 0; ribbonBurst();
+  for (const o of obs) if (o.drop && !o.got) o.dropGone = true;   // drops already on the way fade out: none during the dash
   document.getElementById('partyBanner').classList.add('on'); document.getElementById('partyGlow').classList.add('on');
   setTimeout(()=>document.getElementById('partyBanner').classList.remove('on'), 1600);
 }
@@ -609,7 +613,7 @@ try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
 function reset(){
   state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = headX() + 420*S(); recent.length = 0;   // first obstacle a fixed distance ahead of the head, whatever the screen width
-  drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; updateDrops();
+  drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; dropIn = nextDropGap(); updateDrops();
   trail = [{ ...neckBase(), d: 0 }];
   document.getElementById('score').textContent = 0; document.getElementById('neck').textContent = '';
   document.getElementById('panel').classList.remove('on'); document.getElementById('ready').classList.remove('off');
@@ -644,7 +648,9 @@ function addObstacle(atX){
   const gapTop = Math.max(lo, Math.min(hi, centre - gap/2)); lastCentre = gapTop + gap/2;
   const bottomH = groundY() - gapTop - gap, topH = gapTop + 10;
   const kb = pickKind(bottomH), kt = pickKind(topH);
-  obs.push({ cx: atX, gapTop, gap, kb, kt, passed:false, drop: spawned % DROP_EVERY === 0, got: false });
+  let drop = false;
+  if (dash <= 0 && --dropIn <= 0){ drop = true; dropIn = nextDropGap(); }
+  obs.push({ cx: atX, gapTop, gap, kb, kt, passed:false, drop, got: false });
 }
 const obW = k => OB_W()*LANDMARKS[k].wm;
 function boxesOf(o){
@@ -740,9 +746,11 @@ const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 function update(dt){
   if (dash > 0){ dash -= dt; partyTimer -= dt;
     if (partyTimer <= 0){ partyTimer = 0.3; ribbonPuff(); }
-    if (dash <= 0){ dash = 0; grace = 1.2; document.getElementById('partyGlow').classList.remove('on'); } }
+    if (dash <= 0){ dash = 0; grace = DASH_EASE_OUT; document.getElementById('partyGlow').classList.remove('on'); } }
   else if (grace > 0) grace -= dt;
-  dashFx += ((dash > 0 ? 1 : 0) - dashFx) * Math.min(1, dt*6);
+  if (dash > 0) dashFx += (1 - dashFx) * Math.min(1, dt*6);   // shrink quickly…
+  else dashFx = Math.max(0, dashFx - dt/DASH_EASE_OUT);       // …and grow back slowly
+  for (const o of obs) if (o.dropGone) o.dropA = Math.max(0, (o.dropA ?? 1) - dt*3);
   if (state === 'dead'){ dash = 0; document.getElementById('partyGlow').classList.remove('on'); }
   if (state !== 'dead') while (nextOb < camX + W + 160){ addObstacle(nextOb); nextOb += SPACING(); }
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
@@ -756,7 +764,7 @@ function update(dt){
       const half = Math.max(obW(o.kb), obW(o.kt))/2;
       if (!o.passed && o.cx + half < hx - r){ o.passed = true; score++; document.getElementById('score').textContent = score; }
       if (dash <= 0 && grace <= 0 && Math.abs(o.cx - hx) < half + r && touchesShape(o)) die();
-      if (o.drop && !o.got && Math.hypot(o.cx - hx, (o.gapTop + o.gap/2) - y) < r + 16*S()){
+      if (o.drop && !o.got && !o.dropGone && Math.hypot(o.cx - hx, (o.gapTop + o.gap/2) - y) < r + 16*S()){
         o.got = true; pops.push({ x: o.cx, y: o.gapTop + o.gap/2, t: 0, text: '+💧' });
         if (dash <= 0 && ++drops >= DROP_NEED){ drops = 0; startDash(); }
         updateDrops(); const el = document.getElementById('drops'); el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
@@ -794,15 +802,16 @@ function touchesShape(o){
 }
 function drawObstacles(n, list = obs, labels = true){
   const gy = groundY();
-  if (labels) for (const o of list){ if (o.drop && !o.got){ const sx = o.cx - camX; if (sx > -40 && sx < W + 40) drawDrop(sx, o.gapTop + o.gap/2); } }
+  if (labels) for (const o of list){ if (o.drop && !o.got){ const sx = o.cx - camX; if (sx > -40 && sx < W + 40){
+    const a = o.dropGone ? smooth(o.dropA ?? 1) : 1; if (a > 0.01){ cx.save(); cx.globalAlpha = a; drawDrop(sx, o.gapTop + o.gap/2); cx.restore(); } } } }
   for (const o of list){
     const sx = o.cx - camX; if (sx < -200 || sx > W + 200) continue;
-    { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ cx.globalAlpha = 1 - 0.7*dashFx; cx.translate(0, gy); cx.scale(1, 1 - 0.75*dashFx); cx.translate(0, -gy); }
+    { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.7*k; cx.translate(0, gy); cx.scale(1, 1 - 0.75*k); cx.translate(0, -gy); }
       LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.6)'; cx.shadowBlur=5; cx.fillText(LANDMARKS[o.kb].name, sx, gy + 26*S()); cx.shadowBlur=0; } }
     { const w = obW(o.kt), x = sx - w/2;
-      cx.save(); if (dashFx > 0.01){ cx.globalAlpha = 1 - 0.7*dashFx; cx.translate(0, -10); cx.scale(1, 1 - 0.75*dashFx); cx.translate(0, 10); }
+      cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.7*k; cx.translate(0, -10); cx.scale(1, 1 - 0.75*k); cx.translate(0, 10); }
       cx.translate(0, o.gapTop); cx.scale(1, -1);            // the hanging, upside-down landmark
       LANDMARKS[o.kt].draw(x, 0, w, o.gapTop + 10, n, true); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
