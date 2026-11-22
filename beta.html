@@ -65,7 +65,10 @@
   #human .cb{flex:none;width:26px;height:26px;border:2px solid #9a948c;border-radius:3px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;color:#1a9a4a}
   #human .box.ok .cb{border-color:#1a9a4a} #human .tm{font-size:12px;color:#b05a20;margin-top:10px;font-weight:700}
   #styleBtn{position:fixed;top:12px;right:12px;z-index:25;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:14px;padding:6px 12px;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer;transition:opacity .2s}
-  body.hitmode #partyGlow, body.hitmode #partyBanner{display:none!important}
+  body.hitmode #partyGlow, body.hitmode #partyBanner, body.hitmode #badge, body.hitmode #score, body.hitmode #neck, body.hitmode #drops{display:none!important}
+  body.hitmode #styleBtn{top:42px;background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;font:600 12px "Roboto Mono",ui-monospace,Menlo,monospace}
+  body.hitmode #betaTag{top:76px}
+  body.hitmode #ready .logo, body.hitmode #ready .sub{opacity:.25}
   #styleBtn.hide{opacity:0;pointer-events:none}
   #betaTag{position:fixed;top:52px;right:14px;z-index:25;font-size:11px;font-weight:900;color:#fff;background:#d6336c;padding:2px 8px;border-radius:10px;pointer-events:none}
 </style>
@@ -99,7 +102,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.13.1-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.14.0-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -1298,31 +1301,15 @@ function drawNeckAndHead(){
     cx.fillStyle='#2b1030'; cx.textAlign='center'; cx.fillText(tx, hx, hy-51*s); }
 }
 
-// ---------- 畫面風格（測試版）：在整張畫面畫完之後再加工 ----------
-const STYLES = [
-  { id:'orig', name:'原版' },
-  { id:'nes',  name:'8-bit', div:5, pal:[[20,12,28],[68,36,52],[48,52,109],[78,74,78],[133,76,48],[52,101,36],[208,70,72],[117,113,97],[89,125,206],[210,125,44],[133,149,161],[109,170,44],[210,170,153],[109,194,202],[218,212,94],[222,238,214]] },
-  { id:'gb',   name:'Game Boy', div:2.5, dither:true, pal:[[15,56,15],[48,98,48],[139,172,15],[155,188,15]] },
-  { id:'mono', name:'黑白', div:2, dither:true, pal:[[28,24,30],[236,228,210]] },
-  { id:'crt',  name:'CRT' },
-  { id:'hit',  name:'判定' },
-];
+// ---------- 認真模式（測試版）：不畫美術，只畫電腦拿來判定的東西，外觀仿 Android 開發者選項 ----------
+// 「顯示版面配置範圍」：每個障礙物的實際碰撞形狀（紅色描邊）＋外框（藍色角標）＋座標
+// 「指標位置」：頂端狀態列與羊頭十字線　「GPU 轉譯剖析」：底部每格畫面耗時長條，綠線 = 16 ms
+// The obstacle shapes are the exact solid pixels the collision check uses (drawn with n = 0, alpha > 200).
+// Head: the outer ring is the drawn size; the filled inner circle (72 %) is what actually hits.
+const STYLES = [ { id:'orig', name:'原版' }, { id:'hit', name:'認真模式' } ];
 let styleIx = 0; try{ styleIx = Math.max(0, STYLES.findIndex(s => s.id === localStorage.getItem('sheepStyle'))); }catch(_){}
-const fxCv = document.createElement('canvas'), fxX = fxCv.getContext('2d', { willReadFrequently: true });
-const BAYER = [0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5].map(v => v/16 - 0.5);
-const lutCache = {};
-function lutFor(st){   // 32×32×32 colour cube → nearest palette entry, built once per style
-  if (lutCache[st.id]) return lutCache[st.id];
-  const lut = new Uint8Array(32768);
-  for (let r=0;r<32;r++) for (let g=0;g<32;g++) for (let b=0;b<32;b++){ let best=0, bd=1e9;
-    st.pal.forEach((p,i) => { const d=(r*8+4-p[0])**2*0.3+(g*8+4-p[1])**2*0.59+(b*8+4-p[2])**2*0.11; if (d<bd){ bd=d; best=i; } }); lut[(r<<10)|(g<<5)|b]=best; }
-  return lutCache[st.id] = lut;
-}
-let crtCv = null;
-// ---- 判定模式：不畫美術，只畫電腦拿來判定的東西 ----
-// Obstacles: the exact solid pixels the collision check uses (drawn with n = 0, alpha > 200), cached per obstacle.
-// Head: the outer circle is what you see, the filled inner circle (72 %) is what actually hits; more than 6 solid pixels in it = crash.
-// Drops: the pick-up circle. Ground: touching the red line = crash. During the dash and its ease-out nothing can hit you.
+const DEV = { red:'#ff1744', blue:'#2979ff', magenta:'#e040fb', cyan:'#00e5ff', green:'#00e676', yellow:'#ffea00', text:'#e8eaed', mono:'500 11px "Roboto Mono",ui-monospace,Menlo,Consolas,monospace' };
+const frameMs = []; let lastVy = 0;
 function hitSil(o){
   const key = o.kb + ',' + o.kt + ',' + o.gapTop + ',' + o.gap;
   if (o.sil && o.sil.key === key) return o.sil;
@@ -1331,56 +1318,71 @@ function hitSil(o){
   const realCx = cx, realCam = camX, realFx = dashFx;
   cx = x; camX = o.cx - cw/2; dashFx = 0;
   try { drawObstacles(0, [o], false); } finally { cx = realCx; camX = realCam; dashFx = realFx; }
-  const im = x.getImageData(0, 0, cw, ch), d = im.data;
-  for (let i=0; i<d.length; i+=4){ if (d[i+3] > 200){ d[i]=235; d[i+1]=70; d[i+2]=70; d[i+3]=255; } else d[i+3]=0; }
+  const im = x.getImageData(0, 0, cw, ch), d = im.data, solid = new Uint8Array(cw*ch);
+  for (let i=0; i<cw*ch; i++) solid[i] = d[i*4+3] > 200 ? 1 : 0;
+  const boxes = [[1e9,1e9,-1,-1],[1e9,1e9,-1,-1]];               // [0] hanging (above the gap), [1] standing (below)
+  const gapMid = o.gapTop + o.gap/2;
+  for (let yy=0; yy<ch; yy++) for (let xx=0; xx<cw; xx++){ const i = yy*cw + xx, p = i*4;
+    if (!solid[i]){ d[p+3] = 0; continue; }
+    const b = boxes[yy < gapMid ? 0 : 1]; if (xx<b[0]) b[0]=xx; if (yy<b[1]) b[1]=yy; if (xx>b[2]) b[2]=xx; if (yy>b[3]) b[3]=yy;
+    const edge = xx===0 || yy===0 || xx===cw-1 || yy===ch-1 || !solid[i-1] || !solid[i+1] || !solid[i-cw] || !solid[i+cw];
+    if (edge){ d[p]=255; d[p+1]=23; d[p+2]=68; d[p+3]=255; } else { d[p]=255; d[p+1]=23; d[p+2]=68; d[p+3]=34; } }
   x.putImageData(im, 0, 0);
-  return o.sil = { key, c, cw };
+  return o.sil = { key, c, cw, boxes: boxes.filter(b => b[2] >= 0), names: [LANDMARKS[o.kt].name, LANDMARKS[o.kb].name] };
 }
-function drawHitView(){
+function devBox(x0, y0, x1, y1, col){   // layout-bounds rectangle with corner ticks
+  cx.strokeStyle = col; cx.lineWidth = 1; cx.strokeRect(Math.round(x0)+0.5, Math.round(y0)+0.5, x1-x0, y1-y0);
+  const k = 7; cx.strokeStyle = DEV.blue; cx.lineWidth = 2; cx.beginPath();
+  for (const [ax, ay, sx, sy] of [[x0,y0,1,1],[x1,y0,-1,1],[x0,y1,1,-1],[x1,y1,-1,-1]]){ cx.moveTo(ax + k*sx, ay); cx.lineTo(ax, ay); cx.lineTo(ax, ay + k*sy); }
+  cx.stroke();
+}
+function devLabel(text, x, y, col){ cx.font = DEV.mono; const w = cx.measureText(text).width + 8;
+  cx.fillStyle = 'rgba(0,0,0,.72)'; cx.fillRect(x, y - 11, w, 15); cx.fillStyle = col; cx.textAlign = 'left'; cx.fillText(text, x + 4, y); }
+function drawHitView(dt){
   const gy = groundY(), r = headR(), hx = headX(), safe = dash > 0 || grace > 0;
-  cx.fillStyle = '#101014'; cx.fillRect(-20, -20, W + 40, H + 40);
-  cx.fillStyle = '#2a2a30'; cx.fillRect(0, gy, W, H - gy);
-  cx.fillStyle = '#e84646'; cx.fillRect(0, gy - 1, W, 2);
-  cx.globalAlpha = safe ? 0.25 : 1;
+  cx.fillStyle = '#0d0f12'; cx.fillRect(-20, -20, W + 40, H + 40);
+  cx.strokeStyle = 'rgba(255,255,255,.045)'; cx.lineWidth = 1;                       // 48 px grid
+  for (let gx = -((camX*0.999) % 48); gx < W; gx += 48){ cx.beginPath(); cx.moveTo(Math.round(gx)+0.5, 0); cx.lineTo(Math.round(gx)+0.5, H); cx.stroke(); }
+  for (let gy2 = 0; gy2 < H; gy2 += 48){ cx.beginPath(); cx.moveTo(0, gy2+0.5); cx.lineTo(W, gy2+0.5); cx.stroke(); }
+  cx.fillStyle = 'rgba(255,23,68,.10)'; cx.fillRect(0, gy, W, H - gy);               // ground = crash
+  cx.strokeStyle = DEV.red; cx.setLineDash([6,4]); cx.beginPath(); cx.moveTo(0, gy+0.5); cx.lineTo(W, gy+0.5); cx.stroke(); cx.setLineDash([]);
+  devLabel('GROUND y=' + Math.round(gy), W - 112, gy + 16, DEV.red);
+  cx.globalAlpha = safe ? 0.3 : 1;
   for (const o of obs){ const sx = o.cx - camX; if (sx < -300 || sx > W + 300) continue;
-    const sl = hitSil(o); cx.drawImage(sl.c, sx - sl.cw/2, 0); }
+    const sl = hitSil(o), ox = sx - sl.cw/2; cx.drawImage(sl.c, ox, 0);
+    sl.boxes.forEach((b, k) => { devBox(ox + b[0], b[1], ox + b[2] + 1, b[3] + 1, 'rgba(255,23,68,.55)');
+      const top = k === 0 && sl.boxes.length > 1; devLabel((top ? sl.names[0] : sl.names[1]) + '  ' + Math.round(b[2]-b[0]+1) + '×' + Math.round(b[3]-b[1]+1), ox + b[0], top ? b[3] + 16 : b[1] - 4, DEV.text); });
+    if (sx > -40 && sx < W + 40){                                                    // the gap you have to fly through
+      cx.strokeStyle = DEV.magenta; cx.setLineDash([3,3]); cx.strokeRect(Math.round(sx - 20)+0.5, o.gapTop+0.5, 40, o.gap); cx.setLineDash([]);
+      devLabel('gap ' + Math.round(o.gap), sx + 24, o.gapTop + o.gap/2 + 4, DEV.magenta); } }
   cx.globalAlpha = 1;
   for (const o of obs){ if (!o.drop || o.got || o.dropGone) continue; const sx = o.cx - camX; if (sx < -40 || sx > W + 40) continue;
-    cx.strokeStyle = '#4fc3f7'; cx.lineWidth = 2; cx.beginPath(); cx.arc(sx, o.gapTop + o.gap/2, r + 16*S(), 0, 7); cx.stroke();
-    cx.fillStyle = '#4fc3f7'; cx.beginPath(); cx.arc(sx, o.gapTop + o.gap/2, 4, 0, 7); cx.fill(); }
-  if (trail.length > 1){ cx.strokeStyle = '#55555e'; cx.lineWidth = 2; cx.beginPath(); let first = true;
+    const dy = o.gapTop + o.gap/2; cx.strokeStyle = DEV.cyan; cx.lineWidth = 1.5; cx.setLineDash([4,3]); cx.beginPath(); cx.arc(sx, dy, r + 16*S(), 0, 7); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = DEV.cyan; cx.beginPath(); cx.arc(sx, dy, 3, 0, 7); cx.fill(); }
+  if (trail.length > 1){ cx.strokeStyle = 'rgba(232,234,237,.35)'; cx.lineWidth = 1; cx.beginPath(); let first = true;   // pointer trail
     for (const p of trail){ const px = p.x - camX; if (px < -20) continue; first ? cx.moveTo(px, p.y) : cx.lineTo(px, p.y); first = false; }
     cx.lineTo(hx, y); cx.stroke(); }
-  cx.strokeStyle = safe ? '#ffd54f' : '#e0e0e0'; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(hx, y, r, 0, 7); cx.stroke();
-  cx.fillStyle = safe ? 'rgba(255,213,79,.9)' : 'rgba(120,230,140,.95)'; cx.beginPath(); cx.arc(hx, y, r*0.72, 0, 7); cx.fill();
-  if (safe){ cx.fillStyle = '#ffd54f'; cx.font = '900 14px sans-serif'; cx.textAlign = 'center'; cx.fillText(dash > 0 ? '衝刺中・無敵' : '無敵 ' + grace.toFixed(1) + 's', hx, y - r - 10); }
-  for (const p of pops){ cx.fillStyle = '#4fc3f7'; cx.font = '900 14px sans-serif'; cx.textAlign = 'center'; cx.fillText(p.text, p.x - camX, p.y - 30 - p.t*40); }
+  cx.strokeStyle = 'rgba(41,121,255,.55)'; cx.lineWidth = 1; cx.beginPath();                                                 // pointer crosshair
+  cx.moveTo(0, Math.round(y)+0.5); cx.lineTo(W, Math.round(y)+0.5); cx.moveTo(Math.round(hx)+0.5, 0); cx.lineTo(Math.round(hx)+0.5, H); cx.stroke();
+  cx.strokeStyle = safe ? DEV.yellow : DEV.text; cx.lineWidth = 1; cx.beginPath(); cx.arc(hx, y, r, 0, 7); cx.stroke();
+  cx.fillStyle = safe ? 'rgba(255,234,0,.85)' : 'rgba(0,230,118,.9)'; cx.beginPath(); cx.arc(hx, y, r*0.72, 0, 7); cx.fill();
+  cx.strokeStyle = 'rgba(0,230,118,.8)'; cx.beginPath(); cx.moveTo(hx, y); cx.lineTo(hx + 30, y + Math.max(-60, Math.min(60, vy*0.08))); cx.stroke();   // velocity vector
+  if (safe) devLabel(dash > 0 ? 'INVINCIBLE  dash ' + dash.toFixed(1) + 's' : 'INVINCIBLE  ' + grace.toFixed(1) + 's', hx + r + 6, y - r, DEV.yellow);
+  for (const p of pops) devLabel(p.text.replace('💧','DROP'), p.x - camX, p.y - 30 - p.t*40, DEV.cyan);
+  // 「指標位置」 strip
+  const near = obs.find(o => o.cx - camX + Math.max(obW(o.kb), obW(o.kt))/2 > hx - r);
+  const clr = near ? Math.round(Math.min(y - r*0.72 - near.gapTop, near.gapTop + near.gap - y - r*0.72)) : 0;
+  cx.fillStyle = 'rgba(0,0,0,.8)'; cx.fillRect(0, 0, W, 34); cx.font = DEV.mono; cx.textAlign = 'left';
+  cx.fillStyle = DEV.text; cx.fillText('P: 1/1  Y: ' + y.toFixed(1) + '  Yv: ' + vy.toFixed(0) + '  X: ' + (camX/PX_PER_M).toFixed(1) + 'm', 8, 14);
+  cx.fillStyle = near && clr < 6 ? DEV.red : DEV.green;
+  cx.fillText('SCORE ' + score + '  SPD ×' + speedK().toFixed(2) + '  CLR ' + (near ? clr + 'px' : '—') + '  💧' + drops + '/' + DROP_NEED, 8, 28);
+  // 「GPU 轉譯剖析」 bars
+  frameMs.push(dt*1000); if (frameMs.length > Math.floor(W/4)) frameMs.shift();
+  const base = H - 4, k = 2.2; cx.globalAlpha = 0.85;
+  frameMs.forEach((ms, i) => { cx.fillStyle = ms > 17 ? DEV.red : DEV.blue; cx.fillRect(i*4, base - ms*k, 3, ms*k); });
+  cx.globalAlpha = 1; cx.fillStyle = DEV.green; cx.fillRect(0, base - 16.7*k, W, 1);
 }
-function applyStyle(){
-  const st = STYLES[styleIx]; if (st.id === 'orig' || st.id === 'hit') return;
-  if (st.id === 'crt'){
-    if (!crtCv || crtCv.width !== cv.width || crtCv.height !== cv.height){   // scanlines + vignette, drawn once per screen size
-      crtCv = document.createElement('canvas'); crtCv.width = cv.width; crtCv.height = cv.height; const c = crtCv.getContext('2d');
-      c.fillStyle = 'rgba(0,0,0,.28)'; for (let yy=0; yy<cv.height; yy+=3*DPR) c.fillRect(0, yy, cv.width, DPR);
-      const g = c.createRadialGradient(cv.width/2, cv.height/2, cv.height*0.3, cv.width/2, cv.height/2, cv.height*0.72);
-      g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,'rgba(0,0,0,.65)'); c.fillStyle = g; c.fillRect(0,0,cv.width,cv.height); }
-    cx.save(); cx.setTransform(1,0,0,1,0,0);
-    cx.globalAlpha = 0.18; cx.globalCompositeOperation = 'lighter'; cx.drawImage(cv, 2*DPR, 0); cx.globalCompositeOperation = 'source-over'; cx.globalAlpha = 1;   // a little colour bleed
-    cx.drawImage(crtCv, 0, 0); cx.restore(); return;
-  }
-  const w = Math.max(1, Math.round(W/st.div)), h = Math.max(1, Math.round(H/st.div));
-  if (fxCv.width !== w || fxCv.height !== h){ fxCv.width = w; fxCv.height = h; }
-  fxX.imageSmoothingEnabled = true; fxX.drawImage(cv, 0, 0, w, h);
-  const im = fxX.getImageData(0, 0, w, h), d = im.data, lut = lutFor(st), pal = st.pal, n = pal.length;
-  for (let yy=0, i=0; yy<h; yy++) for (let xx=0; xx<w; xx++, i+=4){
-    let p;
-    if (st.dither){ const l = (0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2])/255*(n-1) + BAYER[(yy&3)*4 + (xx&3)]; p = pal[Math.max(0, Math.min(n-1, Math.round(l)))]; }
-    else p = pal[lut[((d[i]>>3)<<10)|((d[i+1]>>3)<<5)|(d[i+2]>>3)]];
-    d[i]=p[0]; d[i+1]=p[1]; d[i+2]=p[2]; }
-  fxX.putImageData(im, 0, 0);
-  cx.save(); cx.setTransform(1,0,0,1,0,0); cx.imageSmoothingEnabled = false; cx.drawImage(fxCv, 0, 0, cv.width, cv.height); cx.imageSmoothingEnabled = true; cx.restore();
-}
-{ const b = document.getElementById('styleBtn'); const label = () => { b.textContent = '🎨 ' + STYLES[styleIx].name; document.body.classList.toggle('hitmode', STYLES[styleIx].id === 'hit'); }; label();
+{ const b = document.getElementById('styleBtn'); const label = () => { b.textContent = STYLES[styleIx].id === 'hit' ? '🎨 原版' : '🛠 認真模式'; document.body.classList.toggle('hitmode', STYLES[styleIx].id === 'hit'); }; label();
   b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); styleIx = (styleIx + 1) % STYLES.length; label(); try{ localStorage.setItem('sheepStyle', STYLES[styleIx].id); }catch(_){} }); }
 
 let last = performance.now();
@@ -1390,12 +1392,12 @@ function frame(now){
   const n = nightness();
   const hitMode = STYLES[styleIx].id === 'hit';
   cx.save(); if (shake>0.01 && !hitMode) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
-  if (hitMode){ drawHitView(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('styleBtn').classList.toggle('hide', state==='play');
+  if (hitMode){ drawHitView(dt); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
     for (let i=pops.length-1;i>=0;i--){ pops[i].t += dt; if (pops[i].t > 1) pops.splice(i,1); }
     cx.restore(); rctx.setTransform(1,0,0,1,0,0); rctx.clearRect(0,0,rcv.width,rcv.height); requestAnimationFrame(frame); return; }
   drawBackdrop();
   if (n > 0.05){ cx.fillStyle = 'rgba(8,10,30,' + (0.42*n).toFixed(3) + ')'; cx.fillRect(-20, -20, W + 40, H + 40); }   // night veil: dim the scenery so the obstacles read clearly
-  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('styleBtn').classList.toggle('hide', state==='play');
+  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
   drawObstacles(n);
   drawNeckAndHead();
   for (let i=pops.length-1;i>=0;i--){ const p=pops[i]; p.t+=dt;
@@ -1403,7 +1405,6 @@ function frame(now){
     cx.shadowColor='#1fa6d6'; cx.shadowBlur=8; cx.fillText(p.text, p.x-camX, p.y-30-p.t*40); cx.shadowBlur=0; cx.globalAlpha=1;
     if (p.t>1) pops.splice(i,1); }
   cx.restore();
-  applyStyle();
   drawRibbons(dt);
   requestAnimationFrame(frame);
 }
