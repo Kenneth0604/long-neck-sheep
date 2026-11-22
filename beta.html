@@ -120,7 +120,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.15.3-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.15.4-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -870,13 +870,13 @@ const MORE = [
 LANDMARKS.push(...MORE);
 
 // ---------- game ----------
-const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -180*S(), SPEED = () => 160*S();   // floatier, gentler
+const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -195*S(), SPEED = () => 160*S();   // floatier, gentler
 // the whole game runs faster on a log curve as the score grows: forward speed, jumps and falls all scale together
 const speedK = () => 1 + 0.2*Math.log(1 + score/6);
 // hold to jump higher: while the finger stays down (up to HOLD_MAX s) the head keeps rising
-// v1.14.3: the extra lift starts after HOLD_DELAY, so a quick tap is a smaller hop (between the v1.14.2 and older heights)
+// v1.14.4: the extra lift starts after HOLD_DELAY; a quick tap is tuned to about 33 px
 // while a full hold still reaches almost the same height as before
-const HOLD_MAX = 0.3, HOLD_DELAY = 0.03, LIFT = () => 2000*S(), VMAX_UP = () => -270*S();
+const HOLD_MAX = 0.3, HOLD_DELAY = 0.03, LIFT = () => 1800*S(), VMAX_UP = () => -270*S();
 let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
 // the gap starts wide (280) and narrows by 4 per obstacle down to 120
 const curGap = () => Math.max(120, 280 - 4*spawned)*S();
