@@ -64,6 +64,11 @@
   #human .box{display:flex;align-items:center;gap:12px;border:1px solid #d8d0c4;border-radius:6px;background:#f9f9f9;padding:12px 14px;text-align:left;font-size:16px;cursor:pointer;user-select:none;position:relative}
   #human .cb{flex:none;width:26px;height:26px;border:2px solid #9a948c;border-radius:3px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;color:#1a9a4a}
   #human .box.ok .cb{border-color:#1a9a4a} #human .tm{font-size:12px;color:#b05a20;margin-top:10px;font-weight:700}
+  #styleBtn{position:fixed;top:12px;right:12px;z-index:25;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:14px;padding:6px 12px;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer;transition:opacity .2s}
+  body.hitmode #partyGlow, body.hitmode #partyBanner, body.hitmode #badge, body.hitmode #score, body.hitmode #neck, body.hitmode #drops{display:none!important}
+  body.hitmode #styleBtn{top:42px;background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;font:600 12px "Roboto Mono",ui-monospace,Menlo,monospace}
+  body.hitmode #ready .logo, body.hitmode #ready .sub{opacity:.25}
+  #styleBtn.hide{opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -71,6 +76,7 @@
 <div id="score">0</div>
 <div id="neck"></div><div id="drops"></div>
 <div id="partyGlow"></div><div id="partyBanner">🌊 洋流衝刺！</div>
+<button id="styleBtn">🎨 原版</button>
 <div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關・<span id="ver"></span></div>
 <div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">會 飛</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
@@ -94,7 +100,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.12.2';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.13.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -1293,12 +1299,100 @@ function drawNeckAndHead(){
     cx.fillStyle='#2b1030'; cx.textAlign='center'; cx.fillText(tx, hx, hy-51*s); }
 }
 
+// ---------- 認真模式（v1.13）：不畫美術，只畫電腦拿來判定的東西，外觀仿 Android 開發者選項 ----------
+// 「顯示版面配置範圍」：每個障礙物的實際碰撞形狀（紅色描邊）＋外框（藍色角標）＋座標
+// 「指標位置」：頂端狀態列與羊頭十字線　「GPU 轉譯剖析」：底部每格畫面耗時長條，綠線 = 16 ms
+// The obstacle shapes are the exact solid pixels the collision check uses (drawn with n = 0, alpha > 200).
+// Head: the outer ring is the drawn size; the filled inner circle (72 %) is what actually hits.
+const STYLES = [ { id:'orig', name:'原版' }, { id:'hit', name:'認真模式' } ];
+let styleIx = 0; try{ styleIx = Math.max(0, STYLES.findIndex(s => s.id === localStorage.getItem('sheepStyle'))); }catch(_){}
+const DEV = { red:'#ff1744', blue:'#2979ff', magenta:'#e040fb', cyan:'#00e5ff', green:'#00e676', yellow:'#ffea00', text:'#e8eaed', mono:'500 11px "Roboto Mono",ui-monospace,Menlo,Consolas,monospace' };
+const frameMs = []; let lastVy = 0;
+function hitSil(o){
+  const key = o.kb + ',' + o.kt + ',' + o.gapTop + ',' + o.gap;
+  if (o.sil && o.sil.key === key) return o.sil;
+  const pad = 30*S(), cw = Math.ceil(Math.max(obW(o.kb), obW(o.kt)) + pad*2), ch = Math.ceil(H);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+  const realCx = cx, realCam = camX, realFx = dashFx;
+  cx = x; camX = o.cx - cw/2; dashFx = 0;
+  try { drawObstacles(0, [o], false); } finally { cx = realCx; camX = realCam; dashFx = realFx; }
+  const im = x.getImageData(0, 0, cw, ch), d = im.data, solid = new Uint8Array(cw*ch);
+  for (let i=0; i<cw*ch; i++) solid[i] = d[i*4+3] > 200 ? 1 : 0;
+  const boxes = [[1e9,1e9,-1,-1],[1e9,1e9,-1,-1]];               // [0] hanging (above the gap), [1] standing (below)
+  const gapMid = o.gapTop + o.gap/2;
+  for (let yy=0; yy<ch; yy++) for (let xx=0; xx<cw; xx++){ const i = yy*cw + xx, p = i*4;
+    if (!solid[i]){ d[p+3] = 0; continue; }
+    const b = boxes[yy < gapMid ? 0 : 1]; if (xx<b[0]) b[0]=xx; if (yy<b[1]) b[1]=yy; if (xx>b[2]) b[2]=xx; if (yy>b[3]) b[3]=yy;
+    const edge = xx===0 || yy===0 || xx===cw-1 || yy===ch-1 || !solid[i-1] || !solid[i+1] || !solid[i-cw] || !solid[i+cw];
+    if (edge){ d[p]=255; d[p+1]=23; d[p+2]=68; d[p+3]=255; } else { d[p]=255; d[p+1]=23; d[p+2]=68; d[p+3]=34; } }
+  x.putImageData(im, 0, 0);
+  return o.sil = { key, c, cw, boxes: boxes.filter(b => b[2] >= 0), names: [LANDMARKS[o.kt].name, LANDMARKS[o.kb].name] };
+}
+function devBox(x0, y0, x1, y1, col){   // layout-bounds rectangle with corner ticks
+  cx.strokeStyle = col; cx.lineWidth = 1; cx.strokeRect(Math.round(x0)+0.5, Math.round(y0)+0.5, x1-x0, y1-y0);
+  const k = 7; cx.strokeStyle = DEV.blue; cx.lineWidth = 2; cx.beginPath();
+  for (const [ax, ay, sx, sy] of [[x0,y0,1,1],[x1,y0,-1,1],[x0,y1,1,-1],[x1,y1,-1,-1]]){ cx.moveTo(ax + k*sx, ay); cx.lineTo(ax, ay); cx.lineTo(ax, ay + k*sy); }
+  cx.stroke();
+}
+function devLabel(text, x, y, col){ cx.font = DEV.mono; const w = cx.measureText(text).width + 8;
+  cx.fillStyle = 'rgba(0,0,0,.72)'; cx.fillRect(x, y - 11, w, 15); cx.fillStyle = col; cx.textAlign = 'left'; cx.fillText(text, x + 4, y); }
+function drawHitView(dt){
+  const gy = groundY(), r = headR(), hx = headX(), safe = dash > 0 || grace > 0;
+  cx.fillStyle = '#0d0f12'; cx.fillRect(-20, -20, W + 40, H + 40);
+  cx.strokeStyle = 'rgba(255,255,255,.045)'; cx.lineWidth = 1;                       // 48 px grid
+  for (let gx = -((camX*0.999) % 48); gx < W; gx += 48){ cx.beginPath(); cx.moveTo(Math.round(gx)+0.5, 0); cx.lineTo(Math.round(gx)+0.5, H); cx.stroke(); }
+  for (let gy2 = 0; gy2 < H; gy2 += 48){ cx.beginPath(); cx.moveTo(0, gy2+0.5); cx.lineTo(W, gy2+0.5); cx.stroke(); }
+  cx.fillStyle = 'rgba(255,23,68,.10)'; cx.fillRect(0, gy, W, H - gy);               // ground = crash
+  cx.strokeStyle = DEV.red; cx.setLineDash([6,4]); cx.beginPath(); cx.moveTo(0, gy+0.5); cx.lineTo(W, gy+0.5); cx.stroke(); cx.setLineDash([]);
+  devLabel('GROUND y=' + Math.round(gy), W - 112, gy + 16, DEV.red);
+  cx.globalAlpha = safe ? 0.3 : 1;
+  for (const o of obs){ const sx = o.cx - camX; if (sx < -300 || sx > W + 300) continue;
+    const sl = hitSil(o), ox = sx - sl.cw/2; cx.drawImage(sl.c, ox, 0);
+    sl.boxes.forEach((b, k) => { devBox(ox + b[0], b[1], ox + b[2] + 1, b[3] + 1, 'rgba(255,23,68,.55)');
+      const top = k === 0 && sl.boxes.length > 1; devLabel((top ? sl.names[0] : sl.names[1]) + '  ' + Math.round(b[2]-b[0]+1) + '×' + Math.round(b[3]-b[1]+1), ox + b[0], top ? b[3] + 16 : b[1] - 4, DEV.text); });
+    if (sx > -40 && sx < W + 40){                                                    // the gap you have to fly through
+      cx.strokeStyle = DEV.magenta; cx.setLineDash([3,3]); cx.strokeRect(Math.round(sx - 20)+0.5, o.gapTop+0.5, 40, o.gap); cx.setLineDash([]);
+      devLabel('gap ' + Math.round(o.gap), sx + 24, o.gapTop + o.gap/2 + 4, DEV.magenta); } }
+  cx.globalAlpha = 1;
+  for (const o of obs){ if (!o.drop || o.got || o.dropGone) continue; const sx = o.cx - camX; if (sx < -40 || sx > W + 40) continue;
+    const dy = o.gapTop + o.gap/2; cx.strokeStyle = DEV.cyan; cx.lineWidth = 1.5; cx.setLineDash([4,3]); cx.beginPath(); cx.arc(sx, dy, r + 16*S(), 0, 7); cx.stroke(); cx.setLineDash([]);
+    cx.fillStyle = DEV.cyan; cx.beginPath(); cx.arc(sx, dy, 3, 0, 7); cx.fill(); }
+  if (trail.length > 1){ cx.strokeStyle = 'rgba(232,234,237,.35)'; cx.lineWidth = 1; cx.beginPath(); let first = true;   // pointer trail
+    for (const p of trail){ const px = p.x - camX; if (px < -20) continue; first ? cx.moveTo(px, p.y) : cx.lineTo(px, p.y); first = false; }
+    cx.lineTo(hx, y); cx.stroke(); }
+  cx.strokeStyle = 'rgba(41,121,255,.55)'; cx.lineWidth = 1; cx.beginPath();                                                 // pointer crosshair
+  cx.moveTo(0, Math.round(y)+0.5); cx.lineTo(W, Math.round(y)+0.5); cx.moveTo(Math.round(hx)+0.5, 0); cx.lineTo(Math.round(hx)+0.5, H); cx.stroke();
+  cx.strokeStyle = safe ? DEV.yellow : DEV.text; cx.lineWidth = 1; cx.beginPath(); cx.arc(hx, y, r, 0, 7); cx.stroke();
+  cx.fillStyle = safe ? 'rgba(255,234,0,.85)' : 'rgba(0,230,118,.9)'; cx.beginPath(); cx.arc(hx, y, r*0.72, 0, 7); cx.fill();
+  cx.strokeStyle = 'rgba(0,230,118,.8)'; cx.beginPath(); cx.moveTo(hx, y); cx.lineTo(hx + 30, y + Math.max(-60, Math.min(60, vy*0.08))); cx.stroke();   // velocity vector
+  if (safe) devLabel(dash > 0 ? 'INVINCIBLE  dash ' + dash.toFixed(1) + 's' : 'INVINCIBLE  ' + grace.toFixed(1) + 's', hx + r + 6, y - r, DEV.yellow);
+  for (const p of pops) devLabel(p.text.replace('💧','DROP'), p.x - camX, p.y - 30 - p.t*40, DEV.cyan);
+  // 「指標位置」 strip
+  const near = obs.find(o => o.cx - camX + Math.max(obW(o.kb), obW(o.kt))/2 > hx - r);
+  const clr = near ? Math.round(Math.min(y - r*0.72 - near.gapTop, near.gapTop + near.gap - y - r*0.72)) : 0;
+  cx.fillStyle = 'rgba(0,0,0,.8)'; cx.fillRect(0, 0, W, 34); cx.font = DEV.mono; cx.textAlign = 'left';
+  cx.fillStyle = DEV.text; cx.fillText('P: 1/1  Y: ' + y.toFixed(1) + '  Yv: ' + vy.toFixed(0) + '  X: ' + (camX/PX_PER_M).toFixed(1) + 'm', 8, 14);
+  cx.fillStyle = near && clr < 6 ? DEV.red : DEV.green;
+  cx.fillText('SCORE ' + score + '  SPD ×' + speedK().toFixed(2) + '  CLR ' + (near ? clr + 'px' : '—') + '  💧' + drops + '/' + DROP_NEED, 8, 28);
+  // 「GPU 轉譯剖析」 bars
+  frameMs.push(dt*1000); if (frameMs.length > Math.floor(W/4)) frameMs.shift();
+  const base = H - 4, k = 2.2; cx.globalAlpha = 0.85;
+  frameMs.forEach((ms, i) => { cx.fillStyle = ms > 17 ? DEV.red : DEV.blue; cx.fillRect(i*4, base - ms*k, 3, ms*k); });
+  cx.globalAlpha = 1; cx.fillStyle = DEV.green; cx.fillRect(0, base - 16.7*k, W, 1);
+}
+{ const b = document.getElementById('styleBtn'); const label = () => { b.textContent = STYLES[styleIx].id === 'hit' ? '🎨 原版' : '🛠 認真模式'; document.body.classList.toggle('hitmode', STYLES[styleIx].id === 'hit'); }; label();
+  b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); styleIx = (styleIx + 1) % STYLES.length; label(); try{ localStorage.setItem('sheepStyle', STYLES[styleIx].id); }catch(_){} }); }
+
 let last = performance.now();
 function frame(now){
   const dt = Math.min(0.033, (now-last)/1000); last = now; t += dt;
   update(dt);
   const n = nightness();
-  cx.save(); if (shake>0.01) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
+  const hitMode = STYLES[styleIx].id === 'hit';
+  cx.save(); if (shake>0.01 && !hitMode) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
+  if (hitMode){ drawHitView(dt); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
+    for (let i=pops.length-1;i>=0;i--){ pops[i].t += dt; if (pops[i].t > 1) pops.splice(i,1); }
+    cx.restore(); rctx.setTransform(1,0,0,1,0,0); rctx.clearRect(0,0,rcv.width,rcv.height); requestAnimationFrame(frame); return; }
   drawBackdrop();
   if (n > 0.05){ cx.fillStyle = 'rgba(8,10,30,' + (0.42*n).toFixed(3) + ')'; cx.fillRect(-20, -20, W + 40, H + 40); }   // night veil: dim the scenery so the obstacles read clearly
   drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
