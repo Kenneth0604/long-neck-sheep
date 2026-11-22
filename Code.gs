@@ -69,6 +69,8 @@ function rows_() {
 }
 function sorted_() { return rows_().sort((a, b) => b.score - a.score || a.ts - b.ts); }
 function rankOf_(score) { return rows_().filter(r => r.score > score).length + 1; }
+// strip characters a spreadsheet would treat as a formula (=, +, -, @) and control characters
+const cleanName_ = n => String(n || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().replace(/^[=+\-@\s]+/, '').slice(0, MAX_NAME);
 const cleanPid_ = p => String(p || '').replace(/[^A-Za-z0-9-]/g, '').slice(0, 64);
 
 function handle_(p) {
@@ -83,9 +85,16 @@ function handle_(p) {
   try {
     if (action === 'start')  { bump_(1); const o = readStats_(); const pid = cleanPid_(p.pid); if (pid) o.ticket = newTicket_(pid); return o; }
     if (action === 'player') { bump_(2); return readStats_(); }
+    if (action === 'rename') {   // fix a mistyped name on this device's own row; score and time stay the same
+      const name = cleanName_(p.name), pid = cleanPid_(p.pid);
+      if (!pid || !name) return { error: 'bad input' };
+      const mine = rows_().find(r => r.pid === pid);
+      if (!mine) return { error: 'no row' };
+      boardSheet_().getRange(mine.row, 2).setValue(name);
+      return { renamed: true };
+    }
     if (action === 'submit') {
-      // strip characters a spreadsheet would treat as a formula (=, +, -, @) and control characters
-      const name = String(p.name || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().replace(/^[=+\-@\s]+/, '').slice(0, MAX_NAME);
+      const name = cleanName_(p.name);
       const pid = cleanPid_(p.pid), score = Math.floor(Number(p.score));
       if (!pid || !name || !(score >= 1 && score <= MAX_SCORE)) return { error: 'bad input' };
       const key = 't_' + String(p.ticket || '').replace(/[^A-Za-z0-9-]/g, ''), raw = cache_().get(key);

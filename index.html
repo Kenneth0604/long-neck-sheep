@@ -94,7 +94,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.10.1';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.11.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -1152,20 +1152,23 @@ function touchesShape(o){
   }
   return false;
 }
+// at night the obstacles get a warm glowing rim so they stand out from the lit-up city behind them
+// (the collision check draws with n = 0, so the glow never counts as a hit)
+function nightRim(n){ if (n > 0.1){ cx.shadowColor = 'rgba(255,214,140,' + Math.min(1, n*1.1).toFixed(2) + ')'; cx.shadowBlur = 9*S()*n; } }
 function drawObstacles(n, list = obs, labels = true){
   const gy = groundY();
   if (labels) for (const o of list){ if (o.drop && !o.got){ const sx = o.cx - camX; if (sx > -40 && sx < W + 40){
     const a = o.dropGone ? smooth(o.dropA ?? 1) : 1; if (a > 0.01){ cx.save(); cx.globalAlpha = a; drawDrop(sx, o.gapTop + o.gap/2); cx.restore(); } } } }
   for (const o of list){
     const sx = o.cx - camX; if (sx < -200 || sx > W + 200) continue;
-    { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.7*k; cx.translate(0, gy); cx.scale(1, 1 - 0.75*k); cx.translate(0, -gy); }
-      LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
+    { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.45*k; cx.translate(0, gy); cx.scale(1, 1 - 0.75*k); cx.translate(0, -gy); }
+      nightRim(n); LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.6)'; cx.shadowBlur=5; cx.fillText(LANDMARKS[o.kb].name, sx, gy + 26*S()); cx.shadowBlur=0; } }
     { const w = obW(o.kt), x = sx - w/2;
-      cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.7*k; cx.translate(0, -10); cx.scale(1, 1 - 0.75*k); cx.translate(0, 10); }
+      cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.45*k; cx.translate(0, -10); cx.scale(1, 1 - 0.75*k); cx.translate(0, 10); }
       cx.translate(0, o.gapTop); cx.scale(1, -1);            // the hanging, upside-down landmark
-      LANDMARKS[o.kt].draw(x, 0, w, o.gapTop + 10, n, true); cx.restore();
+      nightRim(n); LANDMARKS[o.kt].draw(x, 0, w, o.gapTop + 10, n, true); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.7)'; cx.shadowBlur=5; if (o.gapTop > 90*S() && sx > 150*S()) cx.fillText('↓ '+LANDMARKS[o.kt].name, sx, 68*S()); cx.shadowBlur=0; } }
   }
@@ -1231,6 +1234,7 @@ function frame(now){
   const n = nightness();
   cx.save(); if (shake>0.01) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
   drawBackdrop();
+  if (n > 0.05){ cx.fillStyle = 'rgba(8,10,30,' + (0.42*n).toFixed(3) + ')'; cx.fillRect(-20, -20, W + 40, H + 40); }   // night veil: dim the scenery so the obstacles read clearly
   drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
   drawObstacles(n);
   drawNeckAndHead();
@@ -1250,7 +1254,7 @@ window.SHEET_API = "https://script.google.com/macros/s/AKfycbxfcDZV2VQlhBoSj4j61
 // ===== leaderboard UI =====
 (function(){
   const $ = id => document.getElementById(id);
-  let lastScore = 0;
+  let lastScore = 0, mode = 'upload';   // 'rename' after an automatic record update, so a mistyped name can be fixed
   ['panel','board','boardBtn'].forEach(id => $(id).addEventListener('pointerdown', e => e.stopPropagation()));
   $('againBtn').onclick = () => { if (state === 'dead') reset(); };
   try{ $('nameIn').value = localStorage.getItem('sheepName') || ''; }catch(_){}
@@ -1259,20 +1263,28 @@ window.SHEET_API = "https://script.google.com/macros/s/AKfycbxfcDZV2VQlhBoSj4j61
   const savedName = () => (ls('sheepName') || '').trim().slice(0,12);
   const remember = (sc, r) => ls('sheepLbBest', String(Math.max(sc, +(r && r.best) || 0, +ls('sheepLbBest') || 0)));
   window.onGameOver = sc => {
-    lastScore = sc; $('lbMsg').textContent = '';
+    lastScore = sc; $('lbMsg').textContent = ''; mode = 'upload'; $('sendBtn').textContent = '上傳';
     const name = savedName(), auto = !!window.LB && sc > 0 && !!name && sc > (+ls('sheepLbBest') || 0);
     $('lbForm').classList.toggle('on', !!window.LB && sc > 0 && !auto && !name);
     $('boardBtn2').style.display = window.LB ? '' : 'none';
     if (auto){
       $('lbMsg').textContent = '破紀錄！自動更新排行榜中…';
       window.LB.submit(name, sc).then(r => { remember(sc, r);
-        $('lbMsg').textContent = r.saved ? '🎉 已自動更新排行榜（' + name + '）：第 ' + r.rank + ' 名' : '排行榜保留你之前的 ' + r.best + ' 分（第 ' + r.rank + ' 名）';
+        $('lbMsg').textContent = (r.saved ? '🎉 已自動更新排行榜（' + name + '）：第 ' + r.rank + ' 名' : '排行榜保留你之前的 ' + r.best + ' 分（第 ' + r.rank + ' 名）') + '・名字打錯可以在下面改';
+        mode = 'rename'; $('nameIn').value = name; $('sendBtn').textContent = '改名字'; $('lbForm').classList.add('on');
       }).catch(e => { if (e && (e.code === 'rejected' || e.code === 'robot')){ $('lbMsg').textContent = e.code === 'robot' ? '這局沒有通過「我不是機器人」驗證，不能上榜' : '這局的分數沒有通過檢查，沒有上榜'; return; } $('lbMsg').textContent = '自動更新失敗，可以手動上傳'; $('lbForm').classList.add('on'); });
     }
   };
   $('sendBtn').onclick = async () => {
     const name = $('nameIn').value.trim().slice(0,12);
     if (!name){ $('lbMsg').textContent = '先輸入名字喔'; return; }
+    if (mode === 'rename'){
+      if (name === savedName()){ $('lbMsg').textContent = '名字沒有改變喔'; return; }
+      $('sendBtn').disabled = true; $('lbMsg').textContent = '改名中…';
+      try{ await window.LB.rename(name); ls('sheepName', name); $('lbMsg').textContent = '✏️ 排行榜上的名字已改成「' + name + '」'; $('lbForm').classList.remove('on'); }
+      catch(e){ $('lbMsg').textContent = '改名失敗，請稍後再試'; }
+      $('sendBtn').disabled = false; return;
+    }
     ls('sheepName', name);
     $('sendBtn').disabled = true; $('lbMsg').textContent = '上傳中…';
     try{
@@ -1324,6 +1336,7 @@ window.showStats = (plays, players) => {
   window.LB = {
     pid,
     async submit(name, score){ const r = await call({ action:'submit', pid, name, score, ticket, run: runStats() }, true); if (r.error) throw Object.assign(new Error(r.error), { code: r.error }); return r; },
+    async rename(name){ const r = await call({ action:'rename', pid, name }, true); if (r.error) throw Object.assign(new Error(r.error), { code: r.error }); return r; },
     async top(n){ const r = await call({ action:'top', pid, n }); return (r.rows || []).map(x => ({ id: x.me ? pid : '', name: String(x.name || '？'), score: +x.score || 0 })); },
   };
   window.enableBoard();
