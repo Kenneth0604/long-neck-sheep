@@ -1,7 +1,7 @@
 /**
  * @OnlyCurrentDoc   ← 只允許存取這一份試算表，碰不到你雲端硬碟裡的其他檔案
  *
- * 伸脖羊會飛：統計＋全域排行榜後端（Google Apps Script）
+ * 伸脖羊長脖子：統計＋全域排行榜後端（Google Apps Script）
  * 資料存在這份 Google 試算表裡（在你的雲端硬碟）。
  *   工作表「stats」：A2 = 遊玩次數、B2 = 遊玩人數
  *   工作表「leaderboard」：裝置ID | 名字 | 分數 | 時間 | 檢查（可疑的會寫原因）

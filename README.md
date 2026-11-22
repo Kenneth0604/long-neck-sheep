@@ -1,4 +1,4 @@
-# 🐑 伸脖羊會飛
+# 🐑 伸脖羊長脖子
 
 **👉 [開始玩](https://kenneth0604.github.io/long-neck-sheep/)**
 
