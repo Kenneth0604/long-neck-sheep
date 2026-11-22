@@ -1,4 +1,4 @@
-# 🐑 伸脖羊飛臺北
+# 🐑 伸脖羊會飛
 
 **👉 [開始玩](https://kenneth0604.github.io/long-neck-sheep/)**
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<title>伸脖羊飛臺北</title>
+<title>伸脖羊會飛</title>
 <style>
   html,body{margin:0;height:100%;overflow:hidden;background:#8fd3ff;font-family:system-ui,"PingFang TC","Noto Sans TC",sans-serif;
     -webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -72,7 +72,7 @@
 <div id="neck"></div><div id="drops"></div>
 <div id="partyGlow"></div><div id="partyBanner">🌊 洋流衝刺！</div>
 <div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關・<span id="ver"></span></div>
-<div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">飛 越 臺 北</div>
+<div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">會 飛</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
 <div id="panel"><h1>🐑 伸脖羊：「晚安！」</h1><div class="row"><div>分數<b id="ps">0</b></div><div>最佳<b id="pb">0</b></div></div><div id="pn"></div><div id="pcmp"></div><div id="pfact"></div><div class="stats2" id="statsPanel"></div>
 <div id="lbForm"><input id="nameIn" maxlength="12" placeholder="輸入名字上排行榜" autocomplete="nickname"><button class="pbtn" id="sendBtn">上傳</button></div>
@@ -82,7 +82,7 @@
 <div id="board"><div class="card"><h2>🏆 全域排行榜</h2><ol id="boardList"></ol><div id="boardNote">讀取中…</div>
 <div class="btnrow"><button class="pbtn" id="boardClose">關閉</button></div></div></div>
 <script>
-const cv = document.getElementById('c'); let cx = cv.getContext('2d');
+const cv = document.getElementById('c'); let cx = cv.getContext('2d'); const MAIN_CX = cx;
 // ribbons get their own layer on top of everything (score panel included)
 const rcv = document.createElement('canvas'); rcv.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:30'; document.body.appendChild(rcv);
 const rctx = rcv.getContext('2d');
@@ -94,7 +94,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.11.0';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.12.0';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -370,8 +370,16 @@ const brickBands = (x, y0, w, y1, n) => { cx.fillStyle = C('#f3efe6','#8a8780',n
 function sign(text, x, y, w, color, flip){ if (flip) return;
   cx.fillStyle = color; cx.beginPath(); cx.roundRect(x, y, w, 18*S(), 4); cx.fill();
   cx.fillStyle = '#fff'; cx.font = '900 '+Math.floor(11*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillText(text, x+w/2, y+13*S()); }
-function windowsGrid(x, y0, w, y1, n, col, dx=12, dy=14){ for (let y=y0; y<y1-6; y+=dy) for (let xx=x; xx<x+w-4; xx+=dx){
-  cx.fillStyle = n>0.4 && rnd(xx*1.3+y*0.7)>0.45 ? 'rgba(255,224,130,'+n+')' : col; cx.fillRect(xx, y, dx*0.5, dy*0.5); } }
+// one window pane with a sill underneath and a glint across the glass (v1.12)
+function pane(px, py, pw, ph, lit, col, n){
+  cx.fillStyle = lit ? 'rgba(255,224,130,'+n+')' : col; cx.fillRect(px, py, pw, ph);
+  if (pw < 3 || ph < 3) return;
+  cx.fillStyle = 'rgba(0,0,0,.22)'; cx.fillRect(px - 0.5, py + ph, pw + 1, 1.2);                 // sill shadow
+  if (!lit){ cx.fillStyle = 'rgba(255,255,255,' + (0.28 - n*0.18).toFixed(2) + ')';               // sky reflection
+    cx.beginPath(); cx.moveTo(px, py + ph*0.7); cx.lineTo(px + pw*0.55, py); cx.lineTo(px + pw*0.85, py); cx.lineTo(px, py + ph); cx.fill(); }
+}
+function windowsGrid(x, y0, w, y1, n, col, dx=12, dy=14){ for (let y=y0; y<y1-6; y+=dy) for (let xx=x; xx<x+w-4; xx+=dx)
+  pane(xx, y, dx*0.5, dy*0.5, n>0.4 && rnd(xx*1.3+y*0.7)>0.45, col, n); }
 
 const LANDMARKS = [
   { name:'台北 101', wm:1.0, maxH:9999,
@@ -382,9 +390,19 @@ const LANDMARKS = [
       for (let k=0;k<tiers;k++){ const yb = gy-base-k*tierH;
         cx.fillStyle = glass; cx.beginPath(); cx.moveTo(x+w*0.2, yb); cx.lineTo(x+w*0.8, yb); cx.lineTo(x+w*0.92, yb-tierH); cx.lineTo(x+w*0.08, yb-tierH); cx.fill();
         cx.fillStyle = 'rgba(255,255,255,.25)'; cx.fillRect(x+w*0.08, yb-tierH, w*0.84, 2.5);
+        cx.strokeStyle = 'rgba(20,50,50,.25)'; cx.lineWidth = 1;                                        // glass mullions follow the flare
+        for (let m=1; m<8; m++){ const u=m/8; cx.beginPath(); cx.moveTo(x+w*(0.2+0.6*u), yb); cx.lineTo(x+w*(0.08+0.84*u), yb-tierH); cx.stroke(); }
+        cx.fillStyle = 'rgba(0,30,30,.18)'; cx.fillRect(x+w*0.2, yb-2, w*0.6, 2);
+        const ry = yb - tierH*0.5, rr = Math.max(2.5, Math.min(tierH*0.16, w*0.05));                    // gold 如意 on each side of every section
+        cx.fillStyle = C('#e8c45a','#a8872f',n); for (const u of [0.15, 0.85]){ cx.beginPath(); cx.arc(x+w*u, ry, rr, 0, 7); cx.fill();
+          cx.beginPath(); cx.arc(x+w*u, ry+rr*1.3, rr*0.6, 0, 7); cx.fill(); }
         if (n>0.3){ cx.fillStyle = ['rgba(255,90,90,','rgba(255,200,80,','rgba(120,220,120,','rgba(120,170,255,'][k%4]+n*0.6+')'; cx.fillRect(x+w*0.25, yb-tierH*0.55, w*0.5, 2.5); } }
       const yt = gy-base-tiers*tierH; cx.fillStyle = glass; cx.fillRect(x+w*0.32, yt-tierH*1.3, w*0.36, tierH*1.3);
-      cx.fillStyle = '#d3dcdc'; cx.fillRect(x+w*0.47, top, w*0.06, yt-tierH*1.3-top); },
+      const sb = yt-tierH*1.3, sh = sb-top;                                                                // stepped spire with rings
+      cx.fillStyle = C('#d3dcdc','#7a8a90',n); cx.fillRect(x+w*0.44, top+sh*0.45, w*0.12, sh*0.55); cx.fillRect(x+w*0.47, top, w*0.06, sh);
+      cx.fillStyle = C('#9fb3b3','#556870',n); for (let r=1; r<5; r++) cx.fillRect(x+w*0.43, top+sh*(0.45+r*0.11), w*0.14, 2);
+      if (n>0.3){ cx.fillStyle = 'rgba(255,80,80,'+(0.5+0.5*Math.sin(t*4))*n+')'; cx.beginPath(); cx.arc(x+w*0.5, top+2, 3, 0, 7); cx.fill(); }   // aircraft warning light
+      cx.fillStyle = C('#3c5f5c','#1f3436',n); cx.fillRect(x+w*0.4, gy-base*0.28, w*0.2, base*0.28); },
     hit:(x,top,w,gy)=>{ const H=gy-top, spire=Math.min(40*S(), H*0.12); return [[x+w*0.08, top+spire, w*0.84],[x+w*0.44, top, w*0.12]]; } },
 
   { name:'圓山大飯店', wm:1.15, maxH:9999,
@@ -524,7 +542,9 @@ const LANDMARKS = [
       cx.fillStyle = C('#3c4a5a','#ffe08a',n*0.8); cx.fillRect(x+w*0.06, gy-26*s, w*0.88, 12*s);
       cx.fillStyle = C('#b9c3cc','#4a525c',n); cx.beginPath(); cx.ellipse(x+w/2, top+domeH, w*0.48, domeH, 0, Math.PI, 0); cx.fill();   // oval silver dome
       cx.strokeStyle = 'rgba(255,255,255,.45)'; cx.lineWidth = 1.5;
-      for (let k=1;k<6;k++){ cx.beginPath(); cx.ellipse(x+w/2, top+domeH, w*0.48*k/6, domeH, 0, Math.PI, 0); cx.stroke(); } },
+      for (let k=1;k<6;k++){ cx.beginPath(); cx.ellipse(x+w/2, top+domeH, w*0.48*k/6, domeH, 0, Math.PI, 0); cx.stroke(); }
+      cx.fillStyle = 'rgba(90,100,112,.35)'; for (let u=0.1; u<0.92; u+=0.07) cx.fillRect(x+w*u, top+domeH*1.05, 1.5, gy-26*s-top-domeH*1.05);   // facade fins
+      cx.fillStyle = C('#7a8896','#ffd27a',n*0.7); cx.fillRect(x+w*0.38, gy-13*s, w*0.24, 13*s); },
     hit:(x,top,w,gy)=>[[x+w*0.1, top+Math.min((gy-top)*0.6,60*S())*0.25, w*0.8],[x, top+Math.min((gy-top)*0.6,60*S())*0.7, w]] },
 
   { name:'老公寓', wm:1.0, maxH:9999,
@@ -553,9 +573,13 @@ function G(x, top, w, gy, n, flip){
   g.E = (u,y,ru,ry,col,half) => { cx.fillStyle = g.c(col); cx.beginPath(); cx.ellipse(g.X(u), y, ru*w, ry, 0, half?Math.PI:0, half?0:7); cx.fill(); };
   g.roof = (u0,u1,y,h,col,curl=1) => { const a=g.X(u0), b=g.X(u1), k=(b-a)*0.14;   // Chinese eave with upturned ends
     cx.fillStyle = g.c(col); cx.beginPath(); cx.moveTo(a-6*curl, y-h*0.25*curl); cx.quadraticCurveTo(a+k*0.6, y, a+k, y-h);
-    cx.lineTo(b-k, y-h); cx.quadraticCurveTo(b-k*0.6, y, b+6*curl, y-h*0.25*curl); cx.lineTo(b-k*0.4, y); cx.lineTo(a+k*0.4, y); cx.fill(); };
+    cx.lineTo(b-k, y-h); cx.quadraticCurveTo(b-k*0.6, y, b+6*curl, y-h*0.25*curl); cx.lineTo(b-k*0.4, y); cx.lineTo(a+k*0.4, y); cx.fill();
+    if (h > 6){ cx.save(); cx.clip(); cx.strokeStyle = 'rgba(0,0,0,.16)'; cx.lineWidth = 1;          // tile rows (v1.12)
+      for (let xx = a + 3; xx < b; xx += 4*s){ cx.beginPath(); cx.moveTo(xx, y - h); cx.lineTo(xx + (xx - (a+b)/2)*0.08, y); cx.stroke(); }
+      cx.restore(); cx.fillStyle = 'rgba(255,255,255,.35)'; cx.fillRect(a+k, y-h, b-a-2*k, Math.max(1.5, 1.5*s));   // ridge highlight
+      cx.fillStyle = 'rgba(0,0,0,.25)'; cx.fillRect(a+k*0.4, y-1.5, b-a-k*0.8, 1.5); } };
   g.win = (u0,u1,y0,y1,col,dx=12,dy=14) => { for (let yy=Math.min(y0,y1)+4; yy<Math.max(y0,y1)-dy*0.5; yy+=dy) for (let xx=g.X(u0)+3; xx<g.X(u1)-dx*0.5; xx+=dx){
-    cx.fillStyle = n>0.4 && rnd(xx*1.7+yy*0.3)>0.45 ? 'rgba(255,224,130,'+n+')' : g.c(col); cx.fillRect(xx, yy, dx*0.5, dy*0.5); } };
+    pane(xx, yy, dx*0.5, dy*0.5, n>0.4 && rnd(xx*1.7+yy*0.3)>0.45, g.c(col), n); } };
   g.bands = (u0,u1,y0,y1,col,step=24) => { for (let yy=Math.min(y0,y1)+step*0.5; yy<Math.max(y0,y1); yy+=step) g.R(u0,u1,yy,yy+3,col); };
   g.cols = (u0,u1,y0,y1,k,col,cw=0.04) => { for (let i=0;i<k;i++){ const u=u0+(u1-u0)*(k===1?0.5:i/(k-1)); g.R(u-cw/2,u+cw/2,y0,y1,col); } };
   g.arch = (u,y,wu,h,col) => { cx.fillStyle = g.c(col); cx.beginPath(); const a=g.X(u-wu/2), b=g.X(u+wu/2);
@@ -563,6 +587,11 @@ function G(x, top, w, gy, n, flip){
   g.tree = (u,y,r,col='#3f9a4a',trunk='#6b4423') => { g.R(u-0.02,u+0.02,y,y-r*1.2,trunk); g.C(u,y-r*1.4,r,col); g.C(u-0.06,y-r*1.1,r*0.75,col); g.C(u+0.06,y-r*1.1,r*0.75,col); };
   g.lant = (u,y) => { g.E(u,y,0.035,6*s,'#e53935'); if (n>0.3){ cx.fillStyle='rgba(255,120,80,'+n*0.35+')'; cx.beginPath(); cx.arc(g.X(u),y,10*s,0,7); cx.fill(); } };
   g.sign = (text,u0,u1,y,col) => sign(text, g.X(u0), y, (u1-u0)*w, g.c(col), flip);
+  g.stones = (u0,u1,y0,y1,rowH=9) => { const a=g.X(u0), b=g.X(u1), lo=Math.min(y0,y1), hi=Math.max(y0,y1), rh=rowH*s;   // ashlar block joints
+    cx.save(); cx.beginPath(); cx.rect(a, lo, b-a, hi-lo); cx.clip(); cx.strokeStyle = 'rgba(40,28,20,.22)'; cx.lineWidth = 1;
+    for (let yy=hi, r=0; yy>lo; yy-=rh, r++){ cx.beginPath(); cx.moveTo(a, yy); cx.lineTo(b, yy); cx.stroke();
+      for (let xx=a+(r%2? rh: rh*2); xx<b; xx+=rh*2.4){ cx.beginPath(); cx.moveTo(xx, yy); cx.lineTo(xx, yy-rh); cx.stroke(); } }
+    cx.restore(); };
   g.ground = (col) => g.R(0,1,gy-g.m(10,0.08),gy,col);
   return g;
 }
@@ -590,9 +619,11 @@ const MORE = [
   MK('臺北表演藝術中心',1.3,9999,0,g=>{ const {T,s,m}=g; g.R(0.05,0.95,g.gy,T(0)+m(30,0.3),'#cdd2d6'); g.win(0.08,0.92,T(0)+m(36,0.3),g.gy,'#9aa3ab',10,10);
     g.C(0.58,T(0)+m(30,0.3),Math.min(g.w*0.32, g.m(34,0.3)),'#d9d4c8'); g.R(0.38,0.52,T(0)+m(30,0.3),T(0),'#b8bdc2'); }),
   MK('台北大巨蛋',1.7,170,10,g=>{ const {T,m}=g; const dh=m(70,0.7); g.R(0.03,0.97,g.gy,T(0)+dh*0.85,'#d8dde2'); g.E(0.5,T(0)+dh,0.48,dh,'#f1f3f5',true);
-    for (let k=1;k<7;k++) g.L([[0.5-0.48*k/7,T(0)+dh],[0.5,T(0)+2],[0.5+0.48*k/7,T(0)+dh]],'#c3cad1',1.5); }),
-  MK('臺北市立美術館',1.4,220,0,g=>{ const {T,s}=g; const h=g.H; g.R(0.05,0.95,g.gy,g.gy-h*0.33,'#f2f2ee');
-    g.R(0,0.7,g.gy-h*0.33,g.gy-h*0.6,'#ebebe6'); g.R(0.3,1,g.gy-h*0.6,T(0),'#f5f5f1'); for (const [a,b,y0,y1] of [[0,0.06,0.33,0.6],[0.94,1,0.6,1]]) g.R(a,b,g.gy-h*y0,g.gy-h*y1,'#6f8fa8'); }),
+    for (let k=1;k<7;k++) g.L([[0.5-0.48*k/7,T(0)+dh],[0.5,T(0)+2],[0.5+0.48*k/7,T(0)+dh]],'#c3cad1',1.5);
+    for (let u=0.08; u<0.95; u+=0.06) g.L([[u,T(0)+dh*0.9],[u,g.gy-m(18,0.15)]],'#b9c1c9',1); g.R(0.2,0.8,g.gy,g.gy-m(18,0.15),'#4d6577'); g.win(0.2,0.8,g.gy-m(18,0.15),g.gy,'#7d98ab',9,9); }),
+  MK('臺北市立美術館',1.4,220,0,g=>{ const {T,s,m}=g; const h=g.H; g.R(0.05,0.95,g.gy,g.gy-h*0.33,'#f2f2ee');
+    g.R(0,0.7,g.gy-h*0.33,g.gy-h*0.6,'#ebebe6'); g.R(0.3,1,g.gy-h*0.6,T(0),'#f5f5f1'); for (const [a,b,y0,y1] of [[0,0.06,0.33,0.6],[0.94,1,0.6,1]]){ g.R(a,b,g.gy-h*y0,g.gy-h*y1,'#6f8fa8'); g.bands(a,b,g.gy-h*y1,g.gy-h*y0,'#9fb6c8',10); }
+    for (const y of [0.33,0.6]) g.R(0,1,g.gy-h*y,g.gy-h*y+2.5,'#c9c9c2'); g.R(0.42,0.58,g.gy,g.gy-m(22,0.15),'#5a6e7c'); }),
   MK('國立故宮博物院',1.6,200,0,g=>{ const {T,m}=g; const r1=m(26,0.25), wall=T(0)+r1*2;
     g.R(0.0,1,g.gy,g.gy-m(14,0.12),'#d8d2c2'); g.R(0.08,0.92,g.gy-m(14,0.12),wall,'#efe6cf'); g.cols(0.12,0.88,wall,g.gy-m(14,0.12),9,'#cfc3a2',0.025);
     g.roof(0.05,0.95,wall,r1,'#3d8a5a'); g.R(0.3,0.7,wall-r1,T(0)+r1,'#efe6cf'); g.roof(0.25,0.75,T(0)+r1,r1,'#3d8a5a'); g.R(0.25,0.75,wall-3,wall,'#e2b23a'); }),
@@ -603,7 +634,9 @@ const MORE = [
     g.P([[0.55,deck],[0.65,deck],[0.48,T(0)],[0.44,T(0)]],'#f5f5f5'); for (let k=0;k<7;k++){ g.L([[0.46+0.0,T(10+k*12)],[0.05+k*0.05,deck]],'#fff',1); g.L([[0.47,T(10+k*12)],[0.7+k*0.045,deck]],'#fff',1);} }),
   MK('國立臺灣博物館',1.4,220,0,g=>{ const {T,m}=g; const dome=m(34,0.3), base=T(0)+dome+m(14,0.1);
     g.R(0.04,0.96,g.gy,base,'#f2efe7'); g.cols(0.2,0.8,base+m(10,0.1),g.gy-6,6,'#ffffff',0.05); g.P([[0.16,base+m(10,0.1)],[0.5,base-m(4,0.05)],[0.84,base+m(10,0.1)]],'#e9e4d8');
-    g.R(0.4,0.6,base,T(0)+dome,'#e9e4d8'); g.E(0.5,T(0)+dome,0.14,dome,'#9fb8a9',true); g.R(0.49,0.51,T(0)+2,T(0),'#d9b45a'); }),
+    g.R(0.4,0.6,base,T(0)+dome,'#e9e4d8'); g.E(0.5,T(0)+dome,0.14,dome,'#9fb8a9',true); g.R(0.49,0.51,T(0)+2,T(0),'#d9b45a');
+    for (let i=0;i<6;i++){ const u=0.2+0.6*i/5; g.R(u-0.04,u+0.04,base+m(10,0.1),base+m(13,0.11),'#dcd6c8'); } g.R(0.14,0.86,base+m(10,0.1)-2,base+m(10,0.1),'#cfc8b8');
+    for (let k=0;k<3;k++) g.R(0.1+k*0.03,0.9-k*0.03,g.gy-k*4*g.s,g.gy-(k+1)*4*g.s,'#e0dace'); g.E(0.5,T(0)+dome,0.06,dome*0.5,'#b9cfc1',true); }),
   MK('監察院',1.35,220,0,g=>{ const {T,m}=g; const dome=m(26,0.25), wing=T(0)+dome+m(30,0.25);
     g.R(0.02,0.98,g.gy,wing,'#c66a4a'); g.bands(0.02,0.98,wing,g.gy,'#f3e9dc',22); g.R(0.38,0.62,wing,T(0)+dome,'#c66a4a');
     g.E(0.5,T(0)+dome,0.14,dome,'#4b6f8a',true); g.C(0.5,T(0)+dome+m(12,0.1),5*g.s,'#f3e9dc'); g.arch(0.5,g.gy,0.12,m(30,0.3),'#5a3a2a'); }),
@@ -614,12 +647,13 @@ const MORE = [
   MK('臺北賓館',1.4,200,0,g=>{ const {T,m}=g; const mr=m(28,0.3); g.R(0.04,0.96,g.gy,T(0)+mr,'#ece6da'); g.P([[0.02,T(0)+mr],[0.12,T(0)],[0.88,T(0)],[0.98,T(0)+mr]],'#4c5560');
     for (let k=0;k<5;k++) g.C(0.18+k*0.16,T(0)+mr*0.55,4*g.s,'#ece6da'); g.cols(0.1,0.9,T(0)+mr+6,g.gy,8,'#d4c9b3',0.03); g.arch(0.5,g.gy,0.14,m(30,0.3),'#7a6a55'); }),
   MK('北門郵局',1.4,200,0,g=>{ const {T,m}=g; g.R(0.03,0.97,g.gy,T(0)+m(10,0.1),'#ece3cf'); g.R(0.03,0.97,T(0)+m(10,0.1),T(0),'#d7cbb0');
-    g.cols(0.1,0.9,T(0)+m(16,0.12),g.gy-m(12,0.1),10,'#fffaf0',0.035); g.R(0.03,0.97,g.gy-m(12,0.1),g.gy,'#cfc3a8'); }),
-  MK('東門（景福門）',1.15,200,0,g=>{ const {T,m}=g; const wall=T(0)+m(44,0.4); g.R(0,1,g.gy,wall,'#a99a85'); g.arch(0.5,g.gy,0.32,m(40,0.4),'#3a2c22');
+    g.win(0.06,0.94,T(0)+m(20,0.14),g.gy-m(16,0.12),'#7b8a96',16,22); g.cols(0.1,0.9,T(0)+m(16,0.12),g.gy-m(12,0.1),10,'#fffaf0',0.035); g.R(0.03,0.97,g.gy-m(12,0.1),g.gy,'#cfc3a8');
+    g.R(0,1,T(0)+m(10,0.1),T(0)+m(14,0.11),'#bfb196'); g.R(0.4,0.6,T(0),T(0)-m(8,0.06),'#d7cbb0'); }),
+  MK('東門（景福門）',1.15,200,0,g=>{ const {T,m}=g; const wall=T(0)+m(44,0.4); g.R(0,1,g.gy,wall,'#a99a85'); g.stones(0,1,g.gy,wall); g.arch(0.5,g.gy,0.32,m(40,0.4),'#3a2c22');
     g.R(0.15,0.85,wall,T(0)+m(22,0.2),'#c0392b'); g.roof(0.08,0.92,T(0)+m(26,0.24),m(10,0.1),'#e8b33a'); g.roof(0.2,0.8,T(0)+m(12,0.12),m(12,0.12),'#e8b33a'); }),
-  MK('南門（麗正門）',1.15,200,0,g=>{ const {T,m}=g; const wall=T(0)+m(40,0.4); g.R(0,1,g.gy,wall,'#b39f87'); g.arch(0.5,g.gy,0.3,m(38,0.4),'#3a2c22');
+  MK('南門（麗正門）',1.15,200,0,g=>{ const {T,m}=g; const wall=T(0)+m(40,0.4); g.R(0,1,g.gy,wall,'#b39f87'); g.stones(0,1,g.gy,wall); g.arch(0.5,g.gy,0.3,m(38,0.4),'#3a2c22');
     g.R(0.18,0.82,wall,T(0)+m(16,0.16),'#c0392b'); g.cols(0.2,0.8,wall,T(0)+m(16,0.16),5,'#8b1e1e',0.03); g.roof(0.05,0.95,T(0)+m(18,0.18),m(18,0.18),'#d98c1f'); }),
-  MK('小南門（重熙門）',1.0,190,0,g=>{ const {T,m}=g; const wall=T(0)+m(34,0.38); g.R(0.05,0.95,g.gy,wall,'#9f9483'); g.arch(0.5,g.gy,0.28,m(34,0.4),'#2f251e');
+  MK('小南門（重熙門）',1.0,190,0,g=>{ const {T,m}=g; const wall=T(0)+m(34,0.38); g.R(0.05,0.95,g.gy,wall,'#9f9483'); g.stones(0.05,0.95,g.gy,wall); g.arch(0.5,g.gy,0.28,m(34,0.4),'#2f251e');
     g.R(0.2,0.8,wall,T(0)+m(14,0.15),'#a83a2a'); g.roof(0.08,0.92,T(0)+m(16,0.16),m(16,0.16),'#3f7a55'); }),
   MK('行天宮',1.4,200,0,g=>{ const {T,m}=g; const r=m(22,0.25); g.R(0.06,0.94,g.gy,T(0)+r,'#8e2b23'); g.cols(0.1,0.9,T(0)+r,g.gy,6,'#3a2a22',0.035);
     g.roof(0.02,0.98,T(0)+r,r,'#555b61'); for (const u of [0.2,0.35,0.5,0.65,0.8]) g.lant(u,T(0)+r+12*g.s); g.R(0.4,0.6,g.gy,g.gy-m(34,0.35),'#5b1d18'); }),
@@ -1154,6 +1188,38 @@ function touchesShape(o){
 }
 // at night the obstacles get a warm glowing rim so they stand out from the lit-up city behind them
 // (the collision check draws with n = 0, so the glow never counts as a hit)
+// v1.12: every landmark is drawn into an off-screen layer first, then gets a finishing pass:
+// light from the left (highlight → shadow across the width), a soft contact shadow at its base,
+// a fine dark ink outline, and at night the warm rim glow. The collision check skips all of it.
+const lmCv = document.createElement('canvas'), lmX = lmCv.getContext('2d');
+const inkCv = document.createElement('canvas'), inkX = inkCv.getContext('2d');
+function drawLM(k, x, top, w, gy, n, flip){
+  if (cx !== MAIN_CX){ LANDMARKS[k].draw(x, top, w, gy, n, flip); return; }
+  const pad = 18*S(), bx = x - pad, by = top - pad, bw = w + pad*2, bh = gy - top + pad*2;
+  if (bw < 2 || bh < 2) return;
+  const pw = Math.ceil(bw*DPR), ph = Math.ceil(bh*DPR);
+  for (const c of [lmCv, inkCv]){ if (c.width < pw) c.width = pw; if (c.height < ph) c.height = ph; }
+  lmX.setTransform(1,0,0,1,0,0); lmX.globalCompositeOperation = 'source-over'; lmX.clearRect(0, 0, pw, ph);
+  lmX.setTransform(DPR,0,0,DPR,-bx*DPR,-by*DPR);
+  const real = cx; cx = lmX;
+  try { LANDMARKS[k].draw(x, top, w, gy, n, flip); } finally { cx = real; }
+  lmX.shadowBlur = 0; lmX.globalAlpha = 1; lmX.globalCompositeOperation = 'source-atop';
+  const lit = lmX.createLinearGradient(x, 0, x + w, 0), d = 1 - n*0.5;
+  lit.addColorStop(0, 'rgba(255,248,230,' + (0.22*d).toFixed(3) + ')'); lit.addColorStop(0.18, 'rgba(255,248,230,' + (0.06*d).toFixed(3) + ')');
+  lit.addColorStop(0.55, 'rgba(0,0,0,0)'); lit.addColorStop(1, 'rgba(20,16,40,' + (0.26*d).toFixed(3) + ')');
+  lmX.fillStyle = lit; lmX.fillRect(bx, by, bw, bh);
+  const foot = Math.min(60*S(), (gy - top)*0.25), ao = lmX.createLinearGradient(0, gy - foot, 0, gy);
+  ao.addColorStop(0, 'rgba(20,14,30,0)'); ao.addColorStop(1, 'rgba(20,14,30,.28)');
+  lmX.fillStyle = ao; lmX.fillRect(bx, gy - foot, bw, foot + pad);
+  lmX.globalCompositeOperation = 'source-over';
+  // ink outline: a dark copy of the silhouette, nudged one pixel each way underneath
+  inkX.setTransform(1,0,0,1,0,0); inkX.globalCompositeOperation = 'source-over'; inkX.clearRect(0, 0, pw, ph);
+  inkX.drawImage(lmCv, 0, 0); inkX.globalCompositeOperation = 'source-in';
+  inkX.fillStyle = n > 0.5 ? 'rgba(10,8,24,.85)' : 'rgba(58,38,30,.75)'; inkX.fillRect(0, 0, pw, ph);
+  const o = 1.1;
+  for (const [dx, dy] of [[-o,0],[o,0],[0,-o],[0,o]]) cx.drawImage(inkCv, 0, 0, pw, ph, bx + dx, by + dy, bw, bh);
+  cx.save(); nightRim(n); cx.drawImage(lmCv, 0, 0, pw, ph, bx, by, bw, bh); cx.restore();
+}
 function nightRim(n){ if (n > 0.1){ cx.shadowColor = 'rgba(255,214,140,' + Math.min(1, n*1.1).toFixed(2) + ')'; cx.shadowBlur = 9*S()*n; } }
 function drawObstacles(n, list = obs, labels = true){
   const gy = groundY();
@@ -1162,13 +1228,13 @@ function drawObstacles(n, list = obs, labels = true){
   for (const o of list){
     const sx = o.cx - camX; if (sx < -200 || sx > W + 200) continue;
     { const w = obW(o.kb), x = sx - w/2; cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.45*k; cx.translate(0, gy); cx.scale(1, 1 - 0.75*k); cx.translate(0, -gy); }
-      nightRim(n); LANDMARKS[o.kb].draw(x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
+      drawLM(o.kb, x, o.gapTop + o.gap, w, gy, n, false); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.6)'; cx.shadowBlur=5; cx.fillText(LANDMARKS[o.kb].name, sx, gy + 26*S()); cx.shadowBlur=0; } }
     { const w = obW(o.kt), x = sx - w/2;
       cx.save(); if (dashFx > 0.01){ const k = smooth(dashFx); cx.globalAlpha = 1 - 0.45*k; cx.translate(0, -10); cx.scale(1, 1 - 0.75*k); cx.translate(0, 10); }
       cx.translate(0, o.gapTop); cx.scale(1, -1);            // the hanging, upside-down landmark
-      nightRim(n); LANDMARKS[o.kt].draw(x, 0, w, o.gapTop + 10, n, true); cx.restore();
+      drawLM(o.kt, x, 0, w, o.gapTop + 10, n, true); cx.restore();
       if (labels){ cx.font='900 '+Math.round(16*S())+'px "PingFang TC","Noto Sans TC",sans-serif'; cx.textAlign='center'; cx.fillStyle='#fff';
       cx.shadowColor='rgba(0,0,0,.7)'; cx.shadowBlur=5; if (o.gapTop > 90*S() && sx > 150*S()) cx.fillText('↓ '+LANDMARKS[o.kt].name, sx, 68*S()); cx.shadowBlur=0; } }
   }
