@@ -65,6 +65,7 @@
   #human .cb{flex:none;width:26px;height:26px;border:2px solid #9a948c;border-radius:3px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;color:#1a9a4a}
   #human .box.ok .cb{border-color:#1a9a4a} #human .tm{font-size:12px;color:#b05a20;margin-top:10px;font-weight:700}
   #styleBtn{position:fixed;top:12px;right:12px;z-index:25;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:14px;padding:6px 12px;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer;transition:opacity .2s}
+  body.hitmode #partyGlow, body.hitmode #partyBanner{display:none!important}
   #styleBtn.hide{opacity:0;pointer-events:none}
   #betaTag{position:fixed;top:52px;right:14px;z-index:25;font-size:11px;font-weight:900;color:#fff;background:#d6336c;padding:2px 8px;border-radius:10px;pointer-events:none}
 </style>
@@ -98,7 +99,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.13.0-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.13.1-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -1304,6 +1305,7 @@ const STYLES = [
   { id:'gb',   name:'Game Boy', div:2.5, dither:true, pal:[[15,56,15],[48,98,48],[139,172,15],[155,188,15]] },
   { id:'mono', name:'黑白', div:2, dither:true, pal:[[28,24,30],[236,228,210]] },
   { id:'crt',  name:'CRT' },
+  { id:'hit',  name:'判定' },
 ];
 let styleIx = 0; try{ styleIx = Math.max(0, STYLES.findIndex(s => s.id === localStorage.getItem('sheepStyle'))); }catch(_){}
 const fxCv = document.createElement('canvas'), fxX = fxCv.getContext('2d', { willReadFrequently: true });
@@ -1317,8 +1319,45 @@ function lutFor(st){   // 32×32×32 colour cube → nearest palette entry, buil
   return lutCache[st.id] = lut;
 }
 let crtCv = null;
+// ---- 判定模式：不畫美術，只畫電腦拿來判定的東西 ----
+// Obstacles: the exact solid pixels the collision check uses (drawn with n = 0, alpha > 200), cached per obstacle.
+// Head: the outer circle is what you see, the filled inner circle (72 %) is what actually hits; more than 6 solid pixels in it = crash.
+// Drops: the pick-up circle. Ground: touching the red line = crash. During the dash and its ease-out nothing can hit you.
+function hitSil(o){
+  const key = o.kb + ',' + o.kt + ',' + o.gapTop + ',' + o.gap;
+  if (o.sil && o.sil.key === key) return o.sil;
+  const pad = 30*S(), cw = Math.ceil(Math.max(obW(o.kb), obW(o.kt)) + pad*2), ch = Math.ceil(H);
+  const c = document.createElement('canvas'); c.width = cw; c.height = ch; const x = c.getContext('2d');
+  const realCx = cx, realCam = camX, realFx = dashFx;
+  cx = x; camX = o.cx - cw/2; dashFx = 0;
+  try { drawObstacles(0, [o], false); } finally { cx = realCx; camX = realCam; dashFx = realFx; }
+  const im = x.getImageData(0, 0, cw, ch), d = im.data;
+  for (let i=0; i<d.length; i+=4){ if (d[i+3] > 200){ d[i]=235; d[i+1]=70; d[i+2]=70; d[i+3]=255; } else d[i+3]=0; }
+  x.putImageData(im, 0, 0);
+  return o.sil = { key, c, cw };
+}
+function drawHitView(){
+  const gy = groundY(), r = headR(), hx = headX(), safe = dash > 0 || grace > 0;
+  cx.fillStyle = '#101014'; cx.fillRect(-20, -20, W + 40, H + 40);
+  cx.fillStyle = '#2a2a30'; cx.fillRect(0, gy, W, H - gy);
+  cx.fillStyle = '#e84646'; cx.fillRect(0, gy - 1, W, 2);
+  cx.globalAlpha = safe ? 0.25 : 1;
+  for (const o of obs){ const sx = o.cx - camX; if (sx < -300 || sx > W + 300) continue;
+    const sl = hitSil(o); cx.drawImage(sl.c, sx - sl.cw/2, 0); }
+  cx.globalAlpha = 1;
+  for (const o of obs){ if (!o.drop || o.got || o.dropGone) continue; const sx = o.cx - camX; if (sx < -40 || sx > W + 40) continue;
+    cx.strokeStyle = '#4fc3f7'; cx.lineWidth = 2; cx.beginPath(); cx.arc(sx, o.gapTop + o.gap/2, r + 16*S(), 0, 7); cx.stroke();
+    cx.fillStyle = '#4fc3f7'; cx.beginPath(); cx.arc(sx, o.gapTop + o.gap/2, 4, 0, 7); cx.fill(); }
+  if (trail.length > 1){ cx.strokeStyle = '#55555e'; cx.lineWidth = 2; cx.beginPath(); let first = true;
+    for (const p of trail){ const px = p.x - camX; if (px < -20) continue; first ? cx.moveTo(px, p.y) : cx.lineTo(px, p.y); first = false; }
+    cx.lineTo(hx, y); cx.stroke(); }
+  cx.strokeStyle = safe ? '#ffd54f' : '#e0e0e0'; cx.lineWidth = 1.5; cx.beginPath(); cx.arc(hx, y, r, 0, 7); cx.stroke();
+  cx.fillStyle = safe ? 'rgba(255,213,79,.9)' : 'rgba(120,230,140,.95)'; cx.beginPath(); cx.arc(hx, y, r*0.72, 0, 7); cx.fill();
+  if (safe){ cx.fillStyle = '#ffd54f'; cx.font = '900 14px sans-serif'; cx.textAlign = 'center'; cx.fillText(dash > 0 ? '衝刺中・無敵' : '無敵 ' + grace.toFixed(1) + 's', hx, y - r - 10); }
+  for (const p of pops){ cx.fillStyle = '#4fc3f7'; cx.font = '900 14px sans-serif'; cx.textAlign = 'center'; cx.fillText(p.text, p.x - camX, p.y - 30 - p.t*40); }
+}
 function applyStyle(){
-  const st = STYLES[styleIx]; if (st.id === 'orig') return;
+  const st = STYLES[styleIx]; if (st.id === 'orig' || st.id === 'hit') return;
   if (st.id === 'crt'){
     if (!crtCv || crtCv.width !== cv.width || crtCv.height !== cv.height){   // scanlines + vignette, drawn once per screen size
       crtCv = document.createElement('canvas'); crtCv.width = cv.width; crtCv.height = cv.height; const c = crtCv.getContext('2d');
@@ -1341,7 +1380,7 @@ function applyStyle(){
   fxX.putImageData(im, 0, 0);
   cx.save(); cx.setTransform(1,0,0,1,0,0); cx.imageSmoothingEnabled = false; cx.drawImage(fxCv, 0, 0, cv.width, cv.height); cx.imageSmoothingEnabled = true; cx.restore();
 }
-{ const b = document.getElementById('styleBtn'); const label = () => b.textContent = '🎨 ' + STYLES[styleIx].name; label();
+{ const b = document.getElementById('styleBtn'); const label = () => { b.textContent = '🎨 ' + STYLES[styleIx].name; document.body.classList.toggle('hitmode', STYLES[styleIx].id === 'hit'); }; label();
   b.addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); styleIx = (styleIx + 1) % STYLES.length; label(); try{ localStorage.setItem('sheepStyle', STYLES[styleIx].id); }catch(_){} }); }
 
 let last = performance.now();
@@ -1349,7 +1388,11 @@ function frame(now){
   const dt = Math.min(0.033, (now-last)/1000); last = now; t += dt;
   update(dt);
   const n = nightness();
-  cx.save(); if (shake>0.01) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
+  const hitMode = STYLES[styleIx].id === 'hit';
+  cx.save(); if (shake>0.01 && !hitMode) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
+  if (hitMode){ drawHitView(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('styleBtn').classList.toggle('hide', state==='play');
+    for (let i=pops.length-1;i>=0;i--){ pops[i].t += dt; if (pops[i].t > 1) pops.splice(i,1); }
+    cx.restore(); rctx.setTransform(1,0,0,1,0,0); rctx.clearRect(0,0,rcv.width,rcv.height); requestAnimationFrame(frame); return; }
   drawBackdrop();
   if (n > 0.05){ cx.fillStyle = 'rgba(8,10,30,' + (0.42*n).toFixed(3) + ')'; cx.fillRect(-20, -20, W + 40, H + 40); }   // night veil: dim the scenery so the obstacles read clearly
   drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('styleBtn').classList.toggle('hide', state==='play');
