@@ -64,9 +64,20 @@
   #human .box{display:flex;align-items:center;gap:12px;border:1px solid #d8d0c4;border-radius:6px;background:#f9f9f9;padding:12px 14px;text-align:left;font-size:16px;cursor:pointer;user-select:none;position:relative}
   #human .cb{flex:none;width:26px;height:26px;border:2px solid #9a948c;border-radius:3px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;color:#1a9a4a}
   #human .box.ok .cb{border-color:#1a9a4a} #human .tm{font-size:12px;color:#b05a20;margin-top:10px;font-weight:700}
-  #styleBtn{position:fixed;top:12px;right:12px;z-index:25;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:14px;padding:6px 12px;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer;transition:opacity .2s}
+  #topBtns{position:fixed;top:12px;right:12px;z-index:40;display:flex;gap:8px;align-items:center}
+  body.hitmode #topBtns{top:42px}
+  #pauseBtn{background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:15px;width:38px;height:34px;padding:0;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer}
+  #pauseBtn.hide{display:none}
+  body.hitmode #pauseBtn{background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;height:28px}
+  #pause{position:fixed;inset:0;z-index:35;display:none;align-items:center;justify-content:center;background:rgba(20,14,8,.45)}
+  #pause.on{display:flex}
+  #pause .card{background:#fffdf7;border-radius:16px;padding:20px 26px 16px;text-align:center;color:#3a2a1a;font-weight:900;box-shadow:0 10px 30px rgba(0,0,0,.3);min-width:200px}
+  #pause .t{font-size:22px;margin-bottom:12px} #pause .n{font-size:13px;color:#8a7a6a;font-weight:700;margin-top:10px}
+  #pause .cd{font-size:44px;color:#ff7a1a;line-height:1.1}
+  body.hitmode #pause{background:rgba(0,0,0,.6)} body.hitmode #pause .card{background:#1f2329;color:#e8eaed;border:1px solid #5f6368;border-radius:6px;font-family:"Roboto Mono",ui-monospace,Menlo,monospace}
+  #styleBtn{position:static;background:#fffdf7;color:#2b2b2b;font-weight:900;font-size:14px;padding:6px 12px;border-radius:16px;border:2.5px solid #2b2b2b;box-shadow:0 3px 0 #2b2b2b;cursor:pointer;transition:opacity .2s}
   body.hitmode #partyGlow, body.hitmode #partyBanner, body.hitmode #badge, body.hitmode #score, body.hitmode #neck, body.hitmode #drops{display:none!important}
-  body.hitmode #styleBtn{top:42px;background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;font:600 12px "Roboto Mono",ui-monospace,Menlo,monospace}
+  body.hitmode #styleBtn{background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;font:600 12px "Roboto Mono",ui-monospace,Menlo,monospace}
   body.hitmode #betaTag{top:76px}
   body.hitmode #ready .logo, body.hitmode #ready .sub{opacity:.25}
   #styleBtn.hide{opacity:0;pointer-events:none}
@@ -78,7 +89,8 @@
 <div id="score">0</div>
 <div id="neck"></div><div id="drops"></div>
 <div id="partyGlow"></div><div id="partyBanner">🌊 洋流衝刺！</div>
-<button id="styleBtn">🎨 原版</button><div id="betaTag">測試版</div>
+<div id="topBtns"><button id="pauseBtn" class="hide" aria-label="暫停">⏸</button><button id="styleBtn">🎨 原版</button></div>
+<div id="pause"><div class="card"><div class="t" id="pauseT">⏸ 暫停中</div><button class="pbtn" id="resumeBtn">▶ 繼續</button><div class="n" id="pauseN">也可以按 P 或 Esc</div></div></div><div id="betaTag">測試版</div>
 <div id="badge">🐑 伸脖羊</div><div id="fanNote">非官方粉絲創作・與任何競選團隊無關・<span id="ver"></span></div>
 <div id="ready"><div class="logo"><span>伸</span><span>脖</span><span>羊</span></div><div class="sub">長 脖 子</div>
 <div class="stats" id="statsReady"></div><button class="pbtn" id="boardBtn" style="display:none">🏆 全域排行榜</button><br>👆 點一下，羊頭就往上跳<br><span style="font-size:15px">身體留在原地，脖子一路伸長穿過臺北地標</span></div>
@@ -102,7 +114,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.14.2-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.15.0-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -951,7 +963,7 @@ function runStats(){
 }
 function tap(e){
   e && e.preventDefault && e.preventDefault();
-  if (state === 'check') return;
+  if (state === 'check' || state === 'pause') return;
   if (state === 'play' || state === 'ready') noteTap(e);
   if (state === 'dead'){ if (t - deadT > 0.7) reset(); return; }
   if (state === 'ready'){ runInput.taps = 1; runInput.fake = (!e || e.isTrusted === false) ? 1 : 0; runInput.gaps = []; runInput.last = performance.now(); state = 'play'; setTimeout(updateDrops, 0); document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
@@ -960,6 +972,23 @@ function tap(e){
 cv.addEventListener('pointerdown', tap);
 const letGo = () => { holding = false; };
 addEventListener('pointerup', letGo); addEventListener('pointercancel', letGo); addEventListener('blur', letGo);
+// ---- 暫停 (v1.14) ----
+// The ⏸ button shows only while playing. Resuming counts down 3-2-1 so the sheep doesn't drop straight into a building.
+// Switching away from the tab or app pauses automatically.
+let resuming = null;
+function pauseGame(){ if (state !== 'play') return; state = 'pause'; holding = false; clearTimeout(resuming); resuming = null;
+  document.getElementById('pauseT').textContent = '⏸ 暫停中'; document.getElementById('resumeBtn').style.display = ''; document.getElementById('pauseN').style.display = '';
+  document.getElementById('pause').classList.add('on'); }
+function resumeGame(){ if (state !== 'pause' || resuming) return; let k = 3; const T = document.getElementById('pauseT');
+  document.getElementById('resumeBtn').style.display = 'none'; document.getElementById('pauseN').style.display = 'none';
+  const step = () => { if (state !== 'pause') return; if (k > 0){ T.innerHTML = '<div class="cd">' + k + '</div>'; k--; resuming = setTimeout(step, 450); }
+    else { resuming = null; document.getElementById('pause').classList.remove('on'); state = 'play'; holding = false; } };
+  step(); }
+['pauseBtn','resumeBtn','pause'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.stopPropagation()));
+document.getElementById('pauseBtn').addEventListener('pointerdown', e => { e.preventDefault(); pauseGame(); });
+document.getElementById('resumeBtn').addEventListener('pointerdown', e => { e.preventDefault(); resumeGame(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
+addEventListener('keydown', e => { if (e.code === 'KeyP' || e.code === 'Escape'){ if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); } });
 addEventListener('keydown', e => { if (e.target && e.target.tagName === 'INPUT') return; if (document.getElementById('board').classList.contains('on')) return; if ((e.code==='Space'||e.code==='ArrowUp') && !e.repeat) tap(e); });
 addEventListener('keyup', e => { if (e.code==='Space'||e.code==='ArrowUp') letGo(); });
 
@@ -1136,7 +1165,7 @@ function neckFact(L){   // two different facts, avoiding the ones shown last tim
 const neckMeters = () => Math.max(0, camX + headX() - neckBase().x)/PX_PER_M;
 
 function update(dt){
-  if (state === 'check') return;   // frozen while the 「我不是機器人」 card is up
+  if (state === 'check' || state === 'pause') return;   // frozen while the 「我不是機器人」 card or the pause card is up
   if (dash > 0){ dash -= dt; partyTimer -= dt;
     if (partyTimer <= 0){ partyTimer = 0.3; ribbonPuff(); }
     if (dash <= 0){ dash = 0; grace = DASH_EASE_OUT; openUpAfterDash(); document.getElementById('partyGlow').classList.remove('on'); } }
@@ -1392,12 +1421,12 @@ function frame(now){
   const n = nightness();
   const hitMode = STYLES[styleIx].id === 'hit';
   cx.save(); if (shake>0.01 && !hitMode) cx.translate((Math.random()-0.5)*12*shake, (Math.random()-0.5)*12*shake);
-  if (hitMode){ drawHitView(dt); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
+  if (hitMode){ drawHitView(dt); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('pauseBtn').classList.toggle('hide', state!=='play' && state!=='pause');
     for (let i=pops.length-1;i>=0;i--){ pops[i].t += dt; if (pops[i].t > 1) pops.splice(i,1); }
     cx.restore(); rctx.setTransform(1,0,0,1,0,0); rctx.clearRect(0,0,rcv.width,rcv.height); requestAnimationFrame(frame); return; }
   drawBackdrop();
   if (n > 0.05){ cx.fillStyle = 'rgba(8,10,30,' + (0.42*n).toFixed(3) + ')'; cx.fillRect(-20, -20, W + 40, H + 40); }   // night veil: dim the scenery so the obstacles read clearly
-  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1;
+  drawBody(); document.getElementById('score').style.opacity = state==='ready' ? 0 : 1; document.getElementById('fanNote').style.opacity = state==='play' ? 0 : 1; document.getElementById('pauseBtn').classList.toggle('hide', state!=='play' && state!=='pause');
   drawObstacles(n);
   drawNeckAndHead();
   for (let i=pops.length-1;i>=0;i--){ const p=pops[i]; p.t+=dt;
