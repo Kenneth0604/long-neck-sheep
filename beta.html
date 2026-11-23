@@ -123,7 +123,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.16.3-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.16.4-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -880,6 +880,7 @@ const speedK = () => 1 + 0.2*Math.log(1 + score/6);
 // v1.14.5: no threshold - lift is applied from the moment of the press, so height grows smoothly with press length
 // while a full hold still reaches almost the same height as before
 const HOLD_MAX = 0.45, LIFT = () => 1200*S(), VMAX_UP = () => -270*S(), JUMP_MAX = () => 135*S();   // v1.15.0: longer press window, and no jump climbs more than JUMP_MAX above where it started
+let prankT = null, prankSlow = 1, slowUntil = 0; const PRANK_SLOW = 0.25;   // v1.15.2: while the prank card is up the whole game runs at 25% speed, so there is time to recover
 let holding = false, holdStart = 0, holdY = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
 // the gap starts wide (280) and narrows by 4 per obstacle down to 120
 const curGap = () => Math.max(120, 280 - 4*spawned)*S();
@@ -946,13 +947,13 @@ document.getElementById('humanBox').addEventListener('pointerdown', e => {
   clearInterval(checkTimer); checks.passed++; checks.ms.push(Math.round(performance.now() - checkT0));
   e.currentTarget.classList.add('ok'); document.getElementById('humanCb').textContent = '✔';
   nextCheck = checkAt(Math.floor(score/CHECK_EVERY) + 1);
-  setTimeout(() => { document.getElementById('human').classList.remove('on'); state = 'play'; vy = FLAP(); flapT = t; }, 450);
+  setTimeout(() => { document.getElementById('human').classList.remove('on'); state = 'play'; vy = FLAP(); flapT = t; slowUntil = t + 2.2; prankSlow = PRANK_SLOW; }, 450);   // v1.15.4: after passing the check, the game starts in the same 25% slow motion as the prank card
 });
 let state = 'ready', y = 0, vy = 0, score = 0, best = 0, deadT = 0, trail = [], obs = [], nextOb = 0, flapT = 0, shake = 0;
 const recent = [];
 try{ best = +localStorage.getItem('sheepTaipeiBest') || 0; }catch(_){}
 const headX = () => W*0.36, headR = () => 20*S();
-function reset(){
+function reset(){ slowUntil = 0; prankSlow = 1;
   state = 'ready'; y = neckBase().y - 30*S(); vy = 0; score = 0; camX = 0; obs = []; spawned = 0; lastCentre = neckBase().y - 40*S(); nextOb = headX() + 420*S(); recent.length = 0;   // first obstacle a fixed distance ahead of the head, whatever the screen width
   nextCheck = CHECK_FIRST(); checks.need = 0; checks.passed = 0; checks.fake = 0; checks.ms = []; drops = 0; dash = 0; grace = 0; dashFx = 0; partyTimer = 0; dropIn = nextDropGap(); gapQueue = []; updateDrops();
   trail = [{ ...neckBase(), d: 0 }];
@@ -997,7 +998,6 @@ function resumeGame(){ if (state !== 'pause' || resuming) return; let k = 3; con
   step(); }
 ['pauseBtn','resumeBtn','pause'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.stopPropagation()));
 // v1.15.1: the pause button is a prank - it shows the pause card saying it can't stop, while the game keeps running underneath
-let prankT = null, prankSlow = 1; const PRANK_SLOW = 0.25;   // v1.15.2: while the prank card is up the whole game runs at 25% speed, so there is time to recover
 function prankPause(){ if (state !== 'play') return;
   const P = document.getElementById('pause');
   document.getElementById('pauseT').innerHTML = '<span class="ic-pause"></span>不能停下來！';
@@ -1223,7 +1223,7 @@ function update(dt){
   if (state !== 'dead') while (nextOb < camX + W + 160){ addObstacle(nextOb); nextOb += SPACING(); }
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
   if (state === 'play'){
-    if (prankT) prankSlow = Math.max(PRANK_SLOW, prankSlow - dt*4); else prankSlow = Math.min(1, prankSlow + dt*2);   // ease into slow motion, then back
+    if (prankT || t < slowUntil) prankSlow = Math.max(PRANK_SLOW, prankSlow - dt*4); else prankSlow = Math.min(1, prankSlow + dt*2);   // ease into slow motion, then back
     const gdt = dt*speedK()*prankSlow; gt += gdt;
     // the dash only speeds up forward motion (easing in and out); jumps and falls keep their normal feel
     camX += SPEED()*gdt*(1 + (DASH_SPEED - 1)*smooth(dashFx)); vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
