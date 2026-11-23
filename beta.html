@@ -120,7 +120,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.15.5-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.16.0-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -870,14 +870,14 @@ const MORE = [
 LANDMARKS.push(...MORE);
 
 // ---------- game ----------
-const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -167*S(), SPEED = () => 160*S();   // floatier, gentler
+const GRAV = () => 700*S(), FALL = () => 1500*S(), FLAP = () => -187*S(), SPEED = () => 160*S();   // floatier, gentler
 // the whole game runs faster on a log curve as the score grows: forward speed, jumps and falls all scale together
 const speedK = () => 1 + 0.2*Math.log(1 + score/6);
 // hold to jump higher: while the finger stays down (up to HOLD_MAX s) the head keeps rising
 // v1.14.5: no threshold - lift is applied from the moment of the press, so height grows smoothly with press length
 // while a full hold still reaches almost the same height as before
-const HOLD_MAX = 0.3, LIFT = () => 1800*S(), VMAX_UP = () => -270*S();
-let holding = false, holdStart = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
+const HOLD_MAX = 0.45, LIFT = () => 1200*S(), VMAX_UP = () => -270*S(), JUMP_MAX = () => 135*S();   // v1.15.0: longer press window, and no jump climbs more than JUMP_MAX above where it started
+let holding = false, holdStart = 0, holdY = 0, gt = 0;   // gt = game time, which runs faster as the game speeds up
 // the gap starts wide (280) and narrows by 4 per obstacle down to 120
 const curGap = () => Math.max(120, 280 - 4*spawned)*S();
 const GAP = () => 280*S(), OB_W = () => 80*S(), SPACING = () => 330*S();
@@ -975,7 +975,7 @@ function tap(e){
   if (state === 'play' || state === 'ready') noteTap(e);
   if (state === 'dead'){ if (t - deadT > 0.7) reset(); return; }
   if (state === 'ready'){ runInput.taps = 1; runInput.fake = (!e || e.isTrusted === false) ? 1 : 0; runInput.gaps = []; runInput.last = performance.now(); state = 'play'; setTimeout(updateDrops, 0); document.getElementById('ready').classList.add('off'); try{ window.onGameStart && window.onGameStart(); }catch(_){} }
-  vy = FLAP(); flapT = t; holding = true; holdStart = gt;
+  vy = FLAP(); flapT = t; holding = true; holdStart = gt; holdY = y;
 }
 cv.addEventListener('pointerdown', tap);
 const letGo = () => { holding = false; };
@@ -1116,12 +1116,15 @@ function die(){
 }
 // ---- Taipei yardsticks for the game-over panel; checked 2026-11 against Wikipedia, 總統府, udn (rounded) ----
 const YARDSTICKS = [
+  { m: 2.4,    t: '長頸鹿的脖子',         a: '長' },
   { m: 12,     t: '一台公車',             a: '長' },
   { m: 23.5,   t: '一節捷運車廂',         a: '長' },
   { m: 60,     t: '總統府中央塔',         a: '高' },
+  { m: 60,     t: '小巨蛋的溜冰場',       a: '長' },
   { m: 76,     t: '中正紀念堂',           a: '高' },
   { m: 87,     t: '圓山大飯店',           a: '高' },
   { m: 100,    t: '美麗華摩天輪',         a: '高' },
+  { m: 122.5,  t: '翡翠水庫大壩',         a: '高' },
   { m: 141,    t: '一整列板南線捷運',     a: '長' },
   { m: 183,    t: '象山',                 a: '高' },
   { m: 245,    t: '新光三越摩天大樓',     a: '高' },
@@ -1129,10 +1132,13 @@ const YARDSTICKS = [
   { m: 383,    t: '101 的 89 樓觀景台',   a: '高' },
   { m: 400,    t: '臺北田徑場跑一圈',     a: '長' },
   { m: 508,    t: '台北 101',             a: '高' },
+  { m: 510,    t: '翡翠水庫大壩',         a: '長' },
   { m: 1120,   t: '七星山（臺北最高峰）', a: '高' },
   { m: 4030,   t: '整條貓空纜車',         a: '長' },
   { m: 25700,  t: '整條文湖線',           a: '長' },
   { m: 42195,  t: '一場臺北馬拉松',       a: '長' },
+  { m: 138300, t: '整個臺北捷運路網',     a: '長' },
+  { m: 158700, t: '整條淡水河',           a: '長' },
 ];
 const fmtM = m => m >= 1000 ? (m/1000).toFixed(m >= 10000 ? 1 : 2).replace(/\.?0+$/, '') + ' km' : (m < 10 ? m.toFixed(1) : Math.round(m)) + ' m';
 const zh = (a, b) => a + (/[0-9A-Za-z]$/.test(a) || /^[0-9A-Za-z]/.test(b) ? ' ' : '') + b;   // space only between Latin/digits and CJK
@@ -1147,6 +1153,7 @@ function neckCompare(L){
 }
 // fun facts; figures checked 2026-11 (Wikipedia, nownews, housefeel, 自由時報, 聯合報) — keep sources in the handover doc
 const num = v => Math.round(v).toLocaleString('zh-TW');
+const fmtS = m => m < 0.01 ? (m*1000).toFixed(1) + ' 公釐' : m < 1 ? (m*100).toFixed(1) + ' 公分' : fmtM(m);   // short lengths in mm / cm
 const NECK_FACTS = [
   L => '臺北市約 249 萬人，脖子平分給每人約 ' + (L/2.49e6*1e6).toFixed(L < 25 ? 1 : 0) + ' 微米，' + (L/2.49e6*1e6 < 80 ? '比一根頭髮還細' : '大概 ' + Math.round(L/2.49e6*1e6/80) + ' 根頭髮粗'),
   L => '臺北市 12 個行政區平分，每區分到 ' + fmtM(L/12) + ' 脖子',
@@ -1162,6 +1169,23 @@ const NECK_FACTS = [
   L => '跑完一場臺北馬拉松（42.195 km）的 ' + (L/42195*100).toFixed(L < 422 ? 2 : 1) + '%',
   L => L < 24 ? '大概是一台公車的 ' + Math.round(L/12*100) + '%' : '大概是 ' + Math.round(L/12) + ' 台公車頭尾相接',
   L => L < 4030 ? '是貓空纜車全長（4.03 km）的 ' + (L/4030*100).toFixed(1) + '%' : '可以把貓空纜車從頭到尾繞 ' + (L/4030).toFixed(1) + ' 次',
+  // v1.15.0 additions; figures checked 2026-11-23 on Wikipedia (Taipei 101, Taipei Metro, Feicui Dam, Tamsui River, Yangmingshan, Taipei Zoo, Taipei Arena, Climate of Taiwan) and San Diego Zoo
+  L => '長頸鹿的脖子約 2.4 m，你的脖子等於 ' + (L/2.4).toFixed(L < 24 ? 1 : 0) + ' 隻長頸鹿的脖子接起來',
+  L => '人和長頸鹿的脖子都只有 7 節頸椎，如果羊脖子也是 7 節，每節有 ' + fmtM(L/7) + ' 長',
+  L => '101 有 61 部電梯，脖子平分給每部電梯，每部分到 ' + fmtS(L/61),
+  L => '101 地上 101 層、地下 5 層，把脖子平分給這 106 層，每層分到 ' + fmtS(L/106),
+  L => '101 從動工到開幕約 1,980 天，如果脖子跟著每天長一點，每天要長 ' + fmtS(L/1980),
+  L => '101 造價約 580 億元，換算成你的脖子，每公分值 ' + num(5.8e10/Math.max(L*100, 1)) + ' 元',
+  L => '翡翠水庫大壩高 122.5 m，你的脖子' + (L >= 122.5 ? '比大壩還高 ' + fmtM(L - 122.5) : '是大壩的 ' + Math.round(L/122.5*100) + '% 高'),
+  L => { const v = Math.PI*0.15*0.15*Math.max(L, 0.1); return '把脖子當成直徑 30 公分的水管，要 ' + num(3.355e8/v) + ' 條才裝得下翡翠水庫（有效容量 3.355 億立方公尺）'; },
+  L => '淡水河全長 158.7 km，你的脖子是它的 ' + (L/158700*100).toFixed(L < 1587 ? 3 : 1) + '%',
+  L => '臺北捷運路網 138.3 km、118 站，平均站距約 1.2 km，' + (L < 1180 ? '脖子還跨不到一站，差 ' + fmtM(1180 - L) : '脖子可以跨過 ' + (L/1180).toFixed(1) + ' 站'),
+  L => '臺北捷運 2025 年載了 7.67 億人次，平均每公尺脖子要載 ' + num(7.67e8/Math.max(L, 1)) + ' 人次',
+  L => '臺北一年平均下雨 1,901.5 mm、163 天，你的脖子等於 ' + (L/1.9015).toFixed(1) + ' 年的雨量疊起來',
+  L => '陽明山國家公園有 1,360 種維管束植物，每種分到 ' + fmtS(L/1360) + '脖子',
+  L => '陽明山有 122 種鳥，每種派一隻站在脖子上，每隻相隔 ' + fmtS(L/122),
+  L => '臺北市立動物園有 354 種、2,407 隻動物，排隊摸脖子每隻分到 ' + fmtS(L/2407),
+  L => '小巨蛋坐滿是 1.5 萬人，大家手牽手（每人約 1.5 m）可以排 ' + num(15000*1.5) + ' m，' + (L < 22500 ? '是你脖子的 ' + (22500/Math.max(L, 0.1) >= 10 ? num(22500/Math.max(L, 0.1)) : (22500/Math.max(L, 0.1)).toFixed(1)) + ' 倍' : '還排不滿你的脖子'),
 ];
 let lastFacts = [];
 function neckFact(L){   // two different facts, avoiding the ones shown last time
@@ -1188,7 +1212,8 @@ function update(dt){
     const gdt = dt*speedK(); gt += gdt;
     // the dash only speeds up forward motion (easing in and out); jumps and falls keep their normal feel
     camX += SPEED()*gdt*(1 + (DASH_SPEED - 1)*smooth(dashFx)); vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
-    if (holding && gt - holdStart < HOLD_MAX) vy = Math.max(VMAX_UP(), vy - LIFT()*gdt);
+    // keep lifting only while the predicted top of this jump (risen so far + vy²/2g) is still under JUMP_MAX
+    if (holding && gt - holdStart < HOLD_MAX && (holdY - y) + (vy < 0 ? vy*vy/(2*GRAV()) : 0) < JUMP_MAX()) vy = Math.max(VMAX_UP(), vy - LIFT()*gdt);
     y += vy*gdt;
     const hx = camX + headX(), r = headR();
     for (const o of obs){
