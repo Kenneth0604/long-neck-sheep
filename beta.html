@@ -123,7 +123,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.16.1-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.16.2-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -997,12 +997,12 @@ function resumeGame(){ if (state !== 'pause' || resuming) return; let k = 3; con
   step(); }
 ['pauseBtn','resumeBtn','pause'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.stopPropagation()));
 // v1.15.1: the pause button is a prank - it shows the pause card saying it can't stop, while the game keeps running underneath
-let prankT = null;
+let prankT = null, prankSlow = 1; const PRANK_SLOW = 0.25;   // v1.15.2: while the prank card is up the whole game runs at 25% speed, so there is time to recover
 function prankPause(){ if (state !== 'play') return;
   const P = document.getElementById('pause');
   document.getElementById('pauseT').innerHTML = '<span class="ic-pause"></span>不能停下來！';
   document.getElementById('resumeBtn').style.display = 'none';
-  const N = document.getElementById('pauseN'); N.style.display = ''; N.textContent = '洋流不會停，羊也不會停 🐑';
+  const N = document.getElementById('pauseN'); N.style.display = ''; N.textContent = '…但可以放慢一點，快救羊 🐑';
   P.classList.add('prank', 'on'); clearTimeout(prankT);
   prankT = setTimeout(endPrank, 2200); }
 function endPrank(){ clearTimeout(prankT); prankT = null; const P = document.getElementById('pause');
@@ -1223,7 +1223,8 @@ function update(dt){
   if (state !== 'dead') while (nextOb < camX + W + 160){ addObstacle(nextOb); nextOb += SPACING(); }
   if (state === 'ready'){ y = neckBase().y - 40*S() + Math.sin(t*3)*10; }
   if (state === 'play'){
-    const gdt = dt*speedK(); gt += gdt;
+    if (prankT) prankSlow = Math.max(PRANK_SLOW, prankSlow - dt*4); else prankSlow = Math.min(1, prankSlow + dt*2);   // ease into slow motion, then back
+    const gdt = dt*speedK()*prankSlow; gt += gdt;
     // the dash only speeds up forward motion (easing in and out); jumps and falls keep their normal feel
     camX += SPEED()*gdt*(1 + (DASH_SPEED - 1)*smooth(dashFx)); vy += (vy < 0 ? GRAV() : FALL())*gdt;   // rise gently, fall faster
     // keep lifting only while the predicted top of this jump (risen so far + vy²/2g) is still under JUMP_MAX
