@@ -77,6 +77,9 @@
   body.hitmode #pauseBtn{background:#1f2329;color:#e8eaed;border:1px solid #5f6368;box-shadow:none;border-radius:4px;height:28px}
   #pause{position:fixed;inset:0;z-index:35;display:none;align-items:center;justify-content:center;background:rgba(20,14,8,.45)}
   #pause.on{display:flex}
+  #pause.prank{pointer-events:none;background:rgba(20,14,8,.18)}   /* the prank card: looks like pause, but taps go straight through to the game */
+  #pause.prank .card{animation:prankShake .5s ease-in-out infinite alternate}
+  @keyframes prankShake{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
   #pause .card{background:#fffdf7;border-radius:16px;padding:20px 26px 16px;text-align:center;color:#3a2a1a;font-weight:900;box-shadow:0 10px 30px rgba(0,0,0,.3);min-width:200px}
   #pause .t{font-size:22px;margin-bottom:12px} #pause .n{font-size:13px;color:#8a7a6a;font-weight:700;margin-top:10px}
   #pause .cd{font-size:44px;color:#ff7a1a;line-height:1.1}
@@ -120,7 +123,7 @@ addEventListener('resize', resize); resize();
 const PX_PER_M = 60;
 const S = () => Math.min(1.1, Math.max(0.75, H/760));
 const groundY = () => H*0.86;
-const GAME_VERSION = 'v1.16.0-beta';   // bump on every release: major.minor.patch
+const GAME_VERSION = 'v1.16.1-beta';   // bump on every release: major.minor.patch
 document.getElementById('ver').textContent = GAME_VERSION;
 const rnd = n => { const x = Math.sin(n*127.1)*43758.5453; return x-Math.floor(x); };
 let camX = 0, t = 0;
@@ -927,7 +930,7 @@ const CHECK_EVERY = 60, CHECK_LIMIT = 15, checkAt = k => k*CHECK_EVERY + Math.fl
 const CHECK_FIRST = () => checkAt(1);
 const checks = { need: 0, passed: 0, fake: 0, ms: [] };
 let nextCheck = 0, checkT0 = 0, checkTimer = null;
-function askHuman(){
+function askHuman(){ endPrank();
   state = 'check'; holding = false; checks.need++; checkT0 = performance.now();
   const box = document.getElementById('humanBox'), card = box.parentNode;
   box.classList.remove('ok'); document.getElementById('humanCb').textContent = '';
@@ -984,7 +987,7 @@ addEventListener('pointerup', letGo); addEventListener('pointercancel', letGo); 
 // The ⏸ button shows only while playing. Resuming counts down 3-2-1 so the sheep doesn't drop straight into a building.
 // Switching away from the tab or app pauses automatically.
 let resuming = null;
-function pauseGame(){ if (state !== 'play') return; state = 'pause'; holding = false; clearTimeout(resuming); resuming = null;
+function pauseGame(){ if (state !== 'play') return; endPrank(); state = 'pause'; holding = false; clearTimeout(resuming); resuming = null;
   document.getElementById('pauseT').innerHTML = '<span class="ic-pause"></span>暫停中'; document.getElementById('resumeBtn').style.display = ''; document.getElementById('pauseN').style.display = '';
   document.getElementById('pause').classList.add('on'); }
 function resumeGame(){ if (state !== 'pause' || resuming) return; let k = 3; const T = document.getElementById('pauseT');
@@ -993,10 +996,21 @@ function resumeGame(){ if (state !== 'pause' || resuming) return; let k = 3; con
     else { resuming = null; document.getElementById('pause').classList.remove('on'); state = 'play'; holding = false; } };
   step(); }
 ['pauseBtn','resumeBtn','pause'].forEach(id => document.getElementById(id).addEventListener('pointerdown', e => e.stopPropagation()));
-document.getElementById('pauseBtn').addEventListener('pointerdown', e => { e.preventDefault(); pauseGame(); });
+// v1.15.1: the pause button is a prank - it shows the pause card saying it can't stop, while the game keeps running underneath
+let prankT = null;
+function prankPause(){ if (state !== 'play') return;
+  const P = document.getElementById('pause');
+  document.getElementById('pauseT').innerHTML = '<span class="ic-pause"></span>不能停下來！';
+  document.getElementById('resumeBtn').style.display = 'none';
+  const N = document.getElementById('pauseN'); N.style.display = ''; N.textContent = '洋流不會停，羊也不會停 🐑';
+  P.classList.add('prank', 'on'); clearTimeout(prankT);
+  prankT = setTimeout(endPrank, 2200); }
+function endPrank(){ clearTimeout(prankT); prankT = null; const P = document.getElementById('pause');
+  if (P.classList.contains('prank')){ P.classList.remove('prank', 'on'); document.getElementById('pauseN').textContent = '也可以按 P 或 Esc'; } }
+document.getElementById('pauseBtn').addEventListener('pointerdown', e => { e.preventDefault(); prankPause(); });
 document.getElementById('resumeBtn').addEventListener('pointerdown', e => { e.preventDefault(); resumeGame(); });
 document.addEventListener('visibilitychange', () => { if (document.hidden) pauseGame(); });
-addEventListener('keydown', e => { if (e.code === 'KeyP' || e.code === 'Escape'){ if (state === 'play') pauseGame(); else if (state === 'pause') resumeGame(); } });
+addEventListener('keydown', e => { if (e.code === 'KeyP' || e.code === 'Escape'){ if (state === 'play') prankPause(); else if (state === 'pause') resumeGame(); } });
 addEventListener('keydown', e => { if (e.target && e.target.tagName === 'INPUT') return; if (document.getElementById('board').classList.contains('on')) return; if ((e.code==='Space'||e.code==='ArrowUp') && !e.repeat) tap(e); });
 addEventListener('keyup', e => { if (e.code==='Space'||e.code==='ArrowUp') letGo(); });
 
@@ -1101,7 +1115,7 @@ function drawRibbonsOn(dt){
   }
 }
 
-function die(){
+function die(){ endPrank();
   if (state !== 'play') return;
   state = 'dead'; deadT = t; shake = 1; vy = Math.min(vy, -250*S());
   try{ navigator.vibrate && navigator.vibrate(60); }catch(_){}
